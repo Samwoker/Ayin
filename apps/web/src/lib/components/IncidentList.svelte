@@ -1,5 +1,8 @@
 <script lang="ts">
 	import type { Incident } from '../api/types';
+	import { Card } from '#lib/components/ui/card/index.js';
+	import { Badge, type BadgeVariant } from '#lib/components/ui/badge/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
 
 	interface Props {
 		incidents: Incident[];
@@ -51,36 +54,51 @@
 			return 'recent';
 		}
 	}
+
+	function getSeverityBadgeVariant(severity: string): BadgeVariant {
+		switch (severity?.toLowerCase()) {
+			case 'sev1':
+				return 'sev1';
+			case 'sev2':
+				return 'sev2';
+			case 'sev3':
+				return 'sev3';
+			case 'sev4':
+				return 'sev4';
+			default:
+				return 'secondary';
+		}
+	}
 </script>
 
-<div class="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4 backdrop-blur-sm space-y-4">
+<Card class="p-4 border-slate-800 bg-slate-900/60 backdrop-blur-sm space-y-4">
 	<!-- Header & Filters -->
 	<div class="space-y-3">
 		<div class="flex items-center justify-between">
 			<h2 class="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
 				<span>Incidents Queue</span>
-				<span class="px-2 py-0.5 rounded-full bg-neutral-800 text-[10px] text-neutral-400 font-mono">
+				<Badge variant="secondary" class="text-[10px] px-2 py-0">
 					{filteredIncidents.length}
-				</span>
+				</Badge>
 			</h2>
 
 			<!-- Status Filter Tabs -->
-			<div class="flex items-center rounded-lg bg-neutral-950 p-0.5 border border-neutral-800 text-[11px] font-mono">
+			<div class="flex items-center rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-[11px] font-mono">
 				<button
 					onclick={() => (selectedStatusFilter = 'all')}
-					class="px-2.5 py-1 rounded-md transition cursor-pointer {selectedStatusFilter === 'all' ? 'bg-neutral-800 text-white font-medium shadow-sm' : 'text-neutral-400 hover:text-neutral-200'}"
+					class="px-2.5 py-1 rounded-md transition cursor-pointer {selectedStatusFilter === 'all' ? 'bg-slate-800 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
 				>
 					All
 				</button>
 				<button
 					onclick={() => (selectedStatusFilter = 'active')}
-					class="px-2.5 py-1 rounded-md transition cursor-pointer {selectedStatusFilter === 'active' ? 'bg-neutral-800 text-rose-400 font-medium shadow-sm' : 'text-neutral-400 hover:text-neutral-200'}"
+					class="px-2.5 py-1 rounded-md transition cursor-pointer {selectedStatusFilter === 'active' ? 'bg-slate-800 text-rose-400 font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
 				>
 					Active
 				</button>
 				<button
 					onclick={() => (selectedStatusFilter = 'resolved')}
-					class="px-2.5 py-1 rounded-md transition cursor-pointer {selectedStatusFilter === 'resolved' ? 'bg-neutral-800 text-emerald-400 font-medium shadow-sm' : 'text-neutral-400 hover:text-neutral-200'}"
+					class="px-2.5 py-1 rounded-md transition cursor-pointer {selectedStatusFilter === 'resolved' ? 'bg-slate-800 text-emerald-400 font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
 				>
 					Resolved
 				</button>
@@ -89,12 +107,11 @@
 
 		<!-- Search Input -->
 		<div class="relative">
-			<span class="absolute left-3 top-2.5 text-neutral-500 text-xs">🔍</span>
-			<input
-				type="text"
+			<span class="absolute left-3 top-2.5 text-slate-500 text-xs">🔍</span>
+			<Input
 				placeholder="Search incidents, services..."
 				bind:value={searchQuery}
-				class="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-red-500 transition"
+				class="pl-8 bg-slate-950 border-slate-800 text-xs h-9"
 			/>
 		</div>
 
@@ -103,7 +120,7 @@
 			{#each ['all', 'sev1', 'sev2', 'sev3', 'sev4'] as sev}
 				<button
 					onclick={() => (selectedSeverity = sev)}
-					class="px-2.5 py-0.5 rounded-md border transition cursor-pointer uppercase {selectedSeverity === sev ? 'bg-neutral-800 border-neutral-600 text-white font-bold' : 'bg-neutral-950/60 border-neutral-800/80 text-neutral-400 hover:border-neutral-700'}"
+					class="px-2.5 py-0.5 rounded-md border transition cursor-pointer uppercase {selectedSeverity === sev ? 'bg-slate-800 border-slate-600 text-white font-bold' : 'bg-slate-950/60 border-slate-800/80 text-slate-400 hover:border-slate-700'}"
 				>
 					{sev}
 				</button>
@@ -114,7 +131,7 @@
 	<!-- Incident Cards List -->
 	<div class="space-y-2.5 max-h-[640px] overflow-y-auto pr-1">
 		{#if filteredIncidents.length === 0}
-			<div class="p-8 text-center rounded-lg border border-dashed border-neutral-800 text-neutral-500 text-xs font-mono">
+			<div class="p-8 text-center rounded-lg border border-dashed border-slate-800 text-slate-500 text-xs font-mono">
 				No incidents matching filter criteria
 			</div>
 		{:else}
@@ -123,7 +140,7 @@
 				<button
 					type="button"
 					onclick={() => onSelect(inc)}
-					class="w-full text-left p-3.5 rounded-xl border transition cursor-pointer text-xs space-y-2 relative overflow-hidden group {isSelected ? 'bg-neutral-800/90 border-red-500/80 shadow-md shadow-red-950/20' : 'bg-neutral-950/70 border-neutral-800/80 hover:bg-neutral-900/60 hover:border-neutral-700'}"
+					class="w-full text-left p-3.5 rounded-xl border transition cursor-pointer text-xs space-y-2 relative overflow-hidden group {isSelected ? 'bg-slate-800/90 border-red-500/80 shadow-md shadow-red-950/20' : 'bg-slate-950/70 border-slate-800/80 hover:bg-slate-900/60 hover:border-slate-700'}"
 				>
 					{#if isSelected}
 						<div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-red-500 to-rose-600"></div>
@@ -133,37 +150,29 @@
 					<div class="flex items-center justify-between gap-2">
 						<div class="flex items-center gap-2">
 							<!-- Severity Badge -->
-							<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] uppercase {
-								inc.severity === 'sev1'
-									? 'bg-red-950 text-red-300 border border-red-800/80'
-									: inc.severity === 'sev2'
-										? 'bg-amber-950 text-amber-300 border border-amber-800/80'
-										: inc.severity === 'sev3'
-											? 'bg-yellow-950 text-yellow-300 border border-yellow-800/80'
-											: 'bg-blue-950 text-blue-300 border border-blue-800/80'
-							}">
+							<Badge variant={getSeverityBadgeVariant(inc.severity)} class="uppercase font-mono text-[10px] px-2 py-0.5">
 								{inc.severity}
-							</span>
+							</Badge>
 
 							<!-- Service Tag -->
-							<span class="font-mono text-neutral-300 bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800 text-[10px]">
+							<span class="font-mono text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 text-[10px]">
 								{inc.service}
 							</span>
 						</div>
 
 						<!-- Time Ago -->
-						<span class="text-[10px] text-neutral-500 font-mono">
+						<span class="text-[10px] text-slate-500 font-mono">
 							{formatTimeAgo(inc.created_at || inc.opened_at || '')}
 						</span>
 					</div>
 
 					<!-- Title -->
-					<h3 class="font-medium text-neutral-100 line-clamp-2 leading-snug group-hover:text-white transition">
+					<h3 class="font-medium text-slate-100 line-clamp-2 leading-snug group-hover:text-white transition">
 						{inc.title}
 					</h3>
 
 					<!-- Bottom Row: Status Indicator -->
-					<div class="flex items-center justify-between pt-1 text-[11px] font-mono text-neutral-400">
+					<div class="flex items-center justify-between pt-1 text-[11px] font-mono text-slate-400">
 						<div class="flex items-center gap-1.5">
 							{#if inc.status === 'investigating'}
 								<span class="relative flex h-2 w-2">
@@ -183,10 +192,10 @@
 							{/if}
 						</div>
 
-						<span class="text-[10px] text-neutral-500">ID: {inc.id.slice(0, 8)}</span>
+						<span class="text-[10px] text-slate-500">ID: {inc.id.slice(0, 8)}</span>
 					</div>
 				</button>
 			{/each}
 		{/if}
 	</div>
-</div>
+</Card>
