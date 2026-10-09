@@ -173,4 +173,45 @@ describe('ApiClient', () => {
 		);
 		expect(result).toHaveLength(1);
 	});
+
+	it('posts webhook payload with HMAC signature and metadata headers', async () => {
+		const mockResponse = {
+			status: 'success',
+			source: 'alertmanager',
+			alerts_processed: 2,
+			incidents_created: 1,
+			incidents_grouped: 1,
+			incident_ids: ['inc-123']
+		};
+
+		const mockFetch = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => mockResponse
+		} as Response);
+
+		const client = new ApiClient('http://test-host:8080', mockFetch);
+		const payload = { alerts: [{ status: 'firing' }] };
+		const result = await client.ingestWebhook('alertmanager', payload, {
+			orgId: '00000000-0000-0000-0000-000000000001',
+			signature: 'sha256=test_sig',
+			timestamp: '1700000000'
+		});
+
+		expect(mockFetch).toHaveBeenCalledWith(
+			'http://test-host:8080/api/v1/ingest/00000000-0000-0000-0000-000000000001/webhooks/alertmanager',
+			expect.objectContaining({
+				method: 'POST',
+				headers: expect.objectContaining({
+					'Content-Type': 'application/json',
+					'X-Signature-256': 'sha256=test_sig',
+					'X-Timestamp': '1700000000',
+					'X-Org-ID': '00000000-0000-0000-0000-000000000001'
+				}),
+				body: JSON.stringify(payload)
+			})
+		);
+		expect(result.status).toBe('success');
+		expect(result.incidents_created).toBe(1);
+	});
 });
+

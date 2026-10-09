@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/seraph/triage/apps/api/internal/config"
+	"github.com/seraph/triage/apps/api/internal/ingest"
 	"github.com/seraph/triage/apps/api/internal/telemetry"
 )
 
@@ -28,9 +32,16 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Worker process event loop stub for Phase 1
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+	var queue ingest.Queue
+	if redisOpts, err := redis.ParseURL(cfg.RedisURL); err == nil {
+		rdb := redis.NewClient(redisOpts)
+		defer rdb.Close()
+		queue = ingest.NewRedisQueue(rdb, "stream:investigations", "triage-workers", "worker-1")
+		logger.Info("connected to redis stream for investigation queue")
+	} else {
+		logger.Warn("redis connection failed, falling back to in-memory queue", slog.String("error", err.Error()))
+		queue = ingest.NewMemoryQueue(100)
+	}
 
 	logger.Info("worker listening for investigation jobs...")
 
@@ -39,8 +50,23 @@ func main() {
 		case <-ctx.Done():
 			logger.Info("worker shutting down gracefully...")
 			return
-		case <-ticker.C:
-			logger.Debug("worker heartbeat check")
+		default:
+			job, err := queue.Dequeue(ctx, 2*time.Second)
+			if err != nil {
+				if errors.Is(err, ingest.ErrQueueEmpty) || errors.Is(err, context.Canceled) {
+					continue
+				}
+				logger.Error("failed to dequeue investigation job", slog.String("error", err.Error()))
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			logger.Info("processing investigation job",
+				slog.String("title", job.Title),
+				slog.String("service", job.Service),
+				slog.String("severity", job.Severity),
+				slog.String("source", job.Source),
+			)
 		}
 	}
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/seraph/triage/apps/api/internal/auth"
 	"github.com/seraph/triage/apps/api/internal/config"
+	"github.com/seraph/triage/apps/api/internal/ingest"
 	"github.com/seraph/triage/apps/api/internal/server/handlers"
 	"github.com/seraph/triage/apps/api/internal/server/middleware"
 	"github.com/seraph/triage/apps/api/internal/server/sse"
@@ -38,6 +39,7 @@ func NewServer(
 	jwtManager *auth.JWTManager,
 	rateLimiter *middleware.RateLimiter,
 	broker *sse.Broker,
+	queue ingest.Queue,
 ) *Server {
 	r := chi.NewRouter()
 
@@ -50,6 +52,9 @@ func NewServer(
 	}
 	if broker == nil {
 		broker = sse.NewBroker()
+	}
+	if queue == nil {
+		queue = ingest.NewMemoryQueue(100)
 	}
 
 	authenticator := middleware.NewAuthenticator(jwtManager, st)
@@ -82,6 +87,14 @@ func NewServer(
 			incidentHandler := handlers.NewIncidentHandler(st)
 			runHandler := handlers.NewRunHandler(st, broker)
 			runbookHandler := handlers.NewRunbookHandler(st)
+
+			// Ingestion & Deduplication
+			grouper := ingest.NewAlertGrouper(st, queue, 30*time.Minute)
+			ingestHandler := ingest.NewIngestHandler(st, nil, grouper)
+
+			// Webhook Ingestion endpoints (authenticated via HMAC)
+			r.Post("/ingest/webhooks/{source}", ingestHandler.HandleWebhook)
+			r.Post("/ingest/{org_id}/webhooks/{source}", ingestHandler.HandleWebhook)
 
 			// Auth public endpoints
 			r.Post("/auth/login", authHandler.Login)

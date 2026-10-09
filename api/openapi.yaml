@@ -541,6 +541,133 @@ paths:
                     type: string
                     example: "deleted"
 
+  /api/v1/ingest/webhooks/{source}:
+    post:
+      summary: Ingest alerts from monitoring provider for authenticated tenant
+      operationId: ingestWebhook
+      security:
+        - WebhookHmacAuth: []
+        - BearerAuth: []
+        - ApiKeyAuth: []
+        - {}
+      parameters:
+        - name: source
+          in: path
+          required: true
+          description: Alert source provider
+          schema:
+            type: string
+            enum: [alertmanager, grafana, pagerduty, generic]
+        - name: X-Signature-256
+          in: header
+          description: HMAC-SHA256 signature calculated over timestamp + raw payload
+          schema:
+            type: string
+        - name: X-Timestamp
+          in: header
+          description: Unix timestamp in seconds or RFC3339 timestamp
+          schema:
+            type: string
+        - name: X-Org-ID
+          in: header
+          description: Organization ID when not using Bearer/ApiKey auth
+          schema:
+            type: string
+            format: uuid
+        - name: org_id
+          in: query
+          description: Organization ID as query parameter fallback
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        description: Webhook payload from provider
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Alert ingested and processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookIngestResponse'
+        '400':
+          description: Invalid payload or unsupported source
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid HMAC signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/ingest/{org_id}/webhooks/{source}:
+    post:
+      summary: Ingest alerts from monitoring provider for specific organization
+      operationId: ingestWebhookForOrg
+      security:
+        - WebhookHmacAuth: []
+        - {}
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: Target organization UUID
+          schema:
+            type: string
+            format: uuid
+        - name: source
+          in: path
+          required: true
+          description: Alert source provider
+          schema:
+            type: string
+            enum: [alertmanager, grafana, pagerduty, generic]
+        - name: X-Signature-256
+          in: header
+          description: HMAC-SHA256 signature calculated over timestamp + raw payload
+          schema:
+            type: string
+        - name: X-Timestamp
+          in: header
+          description: Unix timestamp in seconds or RFC3339 timestamp
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: Webhook payload from provider
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Alert ingested and processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookIngestResponse'
+        '400':
+          description: Invalid payload or unsupported source
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid HMAC signature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -551,6 +678,11 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
+    WebhookHmacAuth:
+      type: apiKey
+      in: header
+      name: X-Signature-256
+      description: HMAC-SHA256 signature calculated over timestamp + raw payload with organization webhook secret
 
   schemas:
     HealthResponse:
@@ -926,3 +1058,30 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    WebhookIngestResponse:
+      type: object
+      required: [status, source, alerts_processed, incidents_created, incidents_grouped]
+      properties:
+        status:
+          type: string
+          example: "success"
+        source:
+          type: string
+          example: "alertmanager"
+        alerts_processed:
+          type: integer
+          example: 2
+        incidents_created:
+          type: integer
+          example: 1
+        incidents_grouped:
+          type: integer
+          example: 1
+        incident_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        message:
+          type: string

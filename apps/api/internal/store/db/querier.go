@@ -44,6 +44,7 @@ type Querier interface {
 	GetIncidentByID(ctx context.Context, arg GetIncidentByIDParams) (Incident, error)
 	GetLatestAuditEntry(ctx context.Context, orgID pgtype.UUID) (AuditLog, error)
 	GetMembership(ctx context.Context, arg GetMembershipParams) (GetMembershipRow, error)
+	GetOpenIncidentForService(ctx context.Context, arg GetOpenIncidentForServiceParams) (Incident, error)
 	GetOrgBudget(ctx context.Context, orgID pgtype.UUID) (OrgBudget, error)
 	GetOrgByID(ctx context.Context, id pgtype.UUID) (Org, error)
 	GetOrgBySlug(ctx context.Context, slug string) (Org, error)

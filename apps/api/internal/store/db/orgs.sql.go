@@ -14,7 +14,7 @@ import (
 const createOrg = `-- name: CreateOrg :one
 INSERT INTO orgs (name, slug)
 VALUES ($1, $2)
-RETURNING id, name, slug, created_at, updated_at
+RETURNING id, name, slug, created_at, updated_at, webhook_secret
 `
 
 type CreateOrgParams struct {
@@ -31,12 +31,13 @@ func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) (Org, erro
 		&i.Slug,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WebhookSecret,
 	)
 	return i, err
 }
 
 const getOrgByID = `-- name: GetOrgByID :one
-SELECT id, name, slug, created_at, updated_at FROM orgs
+SELECT id, name, slug, created_at, updated_at, webhook_secret FROM orgs
 WHERE id = $1
 `
 
@@ -49,12 +50,13 @@ func (q *Queries) GetOrgByID(ctx context.Context, id pgtype.UUID) (Org, error) {
 		&i.Slug,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WebhookSecret,
 	)
 	return i, err
 }
 
 const getOrgBySlug = `-- name: GetOrgBySlug :one
-SELECT id, name, slug, created_at, updated_at FROM orgs
+SELECT id, name, slug, created_at, updated_at, webhook_secret FROM orgs
 WHERE slug = $1
 `
 
@@ -67,12 +69,13 @@ func (q *Queries) GetOrgBySlug(ctx context.Context, slug string) (Org, error) {
 		&i.Slug,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WebhookSecret,
 	)
 	return i, err
 }
 
 const listOrgs = `-- name: ListOrgs :many
-SELECT id, name, slug, created_at, updated_at FROM orgs
+SELECT id, name, slug, created_at, updated_at, webhook_secret FROM orgs
 ORDER BY created_at DESC
 `
 
@@ -91,6 +94,7 @@ func (q *Queries) ListOrgs(ctx context.Context) ([]Org, error) {
 			&i.Slug,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.WebhookSecret,
 		); err != nil {
 			return nil, err
 		}

@@ -21,7 +21,7 @@ func TestServerRoutes(t *testing.T) {
 	}
 	logger := telemetry.SetupLogger("error", "test")
 	health := handlers.NewHealthHandler()
-	srv := NewServer(cfg, logger, health, nil, nil, nil, nil)
+	srv := NewServer(cfg, logger, health, nil, nil, nil, nil, nil)
 
 	ts := httptest.NewServer(srv.Router())
 	defer ts.Close()
@@ -75,7 +75,7 @@ func TestServerGracefulShutdown(t *testing.T) {
 	}
 	logger := telemetry.SetupLogger("error", "test")
 	health := handlers.NewHealthHandler()
-	srv := NewServer(cfg, logger, health, nil, nil, nil, nil)
+	srv := NewServer(cfg, logger, health, nil, nil, nil, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

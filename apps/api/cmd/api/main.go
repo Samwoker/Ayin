@@ -12,6 +12,7 @@ import (
 
 	"github.com/seraph/triage/apps/api/internal/auth"
 	"github.com/seraph/triage/apps/api/internal/config"
+	"github.com/seraph/triage/apps/api/internal/ingest"
 	"github.com/seraph/triage/apps/api/internal/server"
 	"github.com/seraph/triage/apps/api/internal/server/handlers"
 	"github.com/seraph/triage/apps/api/internal/server/middleware"
@@ -67,7 +68,14 @@ func main() {
 	rateLimiter := middleware.NewRateLimiter(rdb, 120, time.Minute)
 	broker := sse.NewBroker()
 
-	srv := server.NewServer(cfg, logger, health, st, jwtManager, rateLimiter, broker)
+	var queue ingest.Queue
+	if rdb != nil {
+		queue = ingest.NewRedisQueue(rdb, "stream:investigations", "triage-workers", "api-producer")
+	} else {
+		queue = ingest.NewMemoryQueue(100)
+	}
+
+	srv := server.NewServer(cfg, logger, health, st, jwtManager, rateLimiter, broker, queue)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

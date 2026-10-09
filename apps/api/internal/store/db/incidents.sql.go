@@ -109,6 +109,37 @@ func (q *Queries) GetIncidentByID(ctx context.Context, arg GetIncidentByIDParams
 	return i, err
 }
 
+const getOpenIncidentForService = `-- name: GetOpenIncidentForService :one
+SELECT id, org_id, title, service, severity, status, opened_at, resolved_at, created_at, updated_at FROM incidents
+WHERE org_id = $1 AND service = $2 AND status IN ('open', 'investigating') AND opened_at > $3
+ORDER BY opened_at DESC
+LIMIT 1
+`
+
+type GetOpenIncidentForServiceParams struct {
+	OrgID    pgtype.UUID        `json:"org_id"`
+	Service  string             `json:"service"`
+	OpenedAt pgtype.Timestamptz `json:"opened_at"`
+}
+
+func (q *Queries) GetOpenIncidentForService(ctx context.Context, arg GetOpenIncidentForServiceParams) (Incident, error) {
+	row := q.db.QueryRow(ctx, getOpenIncidentForService, arg.OrgID, arg.Service, arg.OpenedAt)
+	var i Incident
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.Title,
+		&i.Service,
+		&i.Severity,
+		&i.Status,
+		&i.OpenedAt,
+		&i.ResolvedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listIncidents = `-- name: ListIncidents :many
 SELECT id, org_id, title, service, severity, status, opened_at, resolved_at, created_at, updated_at FROM incidents
 WHERE org_id = $1

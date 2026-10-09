@@ -24,3 +24,10 @@ SELECT status, count(*) as count
 FROM incidents
 WHERE org_id = $1
 GROUP BY status;
+
+-- name: GetOpenIncidentForService :one
+SELECT * FROM incidents
+WHERE org_id = $1 AND service = $2 AND status IN ('open', 'investigating') AND opened_at > $3
+ORDER BY opened_at DESC
+LIMIT 1;
+

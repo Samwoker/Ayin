@@ -48,11 +48,11 @@ func main() {
 	// Execute Idempotent Seed SQL
 	seedSQL := `
     -- 1. Demo Organizations
-    INSERT INTO orgs (id, name, slug)
+    INSERT INTO orgs (id, name, slug, webhook_secret)
     VALUES 
-        ('00000000-0000-0000-0000-000000000001', 'Acme Corp', 'acme'),
-        ('00000000-0000-0000-0000-000000000002', 'Globex Logistics', 'globex')
-    ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name;
+        ('00000000-0000-0000-0000-000000000001', 'Acme Corp', 'acme', 'acme_webhook_secret_32bytes_hex_123'),
+        ('00000000-0000-0000-0000-000000000002', 'Globex Logistics', 'globex', 'globex_webhook_secret_32bytes_hex_456')
+    ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, webhook_secret = EXCLUDED.webhook_secret;
 
     -- 2. Demo Users (Argon2id or dev hashes)
     INSERT INTO users (id, email, name, password_hash)

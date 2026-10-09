@@ -18,7 +18,8 @@ import type {
 	RunStep,
 	RunDetailResponse,
 	Runbook,
-	CreateRunbookRequest
+	CreateRunbookRequest,
+	WebhookIngestResponse
 } from './types';
 
 export class ApiClient {
@@ -269,6 +270,47 @@ export class ApiClient {
 			`/api/v1/runbooks/${id}`,
 			{ method: 'DELETE' },
 			token
+		);
+	}
+
+	/**
+	 * Phase 4: Ingest alerts from monitoring provider
+	 */
+	async ingestWebhook(
+		source: 'alertmanager' | 'grafana' | 'pagerduty' | 'generic',
+		payload: unknown,
+		options?: {
+			orgId?: string;
+			signature?: string;
+			timestamp?: string;
+			token?: string;
+		}
+	): Promise<WebhookIngestResponse> {
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json'
+		};
+		if (options?.signature) {
+			headers['X-Signature-256'] = options.signature;
+		}
+		if (options?.timestamp) {
+			headers['X-Timestamp'] = options.timestamp;
+		}
+		if (options?.orgId) {
+			headers['X-Org-ID'] = options.orgId;
+		}
+
+		const path = options?.orgId
+			? `/api/v1/ingest/${options.orgId}/webhooks/${source}`
+			: `/api/v1/ingest/webhooks/${source}`;
+
+		return this.request<WebhookIngestResponse>(
+			path,
+			{
+				method: 'POST',
+				headers,
+				body: JSON.stringify(payload)
+			},
+			options?.token
 		);
 	}
 }

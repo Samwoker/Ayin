@@ -192,3 +192,14 @@ export interface CreateRunbookRequest {
 	description?: string;
 	content_markdown: string;
 }
+
+// Phase 4: Webhook Ingest Types
+export interface WebhookIngestResponse {
+	status: string;
+	source: string;
+	alerts_processed: number;
+	incidents_created: number;
+	incidents_grouped: number;
+	incident_ids?: string[];
+	message?: string;
+}
