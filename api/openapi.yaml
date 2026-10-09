@@ -45,15 +45,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  version:
-                    type: string
-                required:
-                  - status
-                  - version
+                $ref: '#/components/schemas/StatusResponse'
 components:
   schemas:
     HealthResponse:
@@ -87,6 +79,38 @@ components:
             type: string
       required:
         - status
+        - timestamp
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "online"
+        version:
+          type: string
+          example: "0.1.0"
+        service:
+          type: string
+          example: "triage-api"
+        environment:
+          type: string
+          example: "development"
+        uptime_seconds:
+          type: integer
+          example: 120
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - status
+        - version
+        - service
+        - environment
+        - uptime_seconds
         - timestamp
     ErrorResponse:
       type: object

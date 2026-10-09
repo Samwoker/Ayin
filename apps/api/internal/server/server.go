@@ -44,13 +44,10 @@ func NewServer(cfg config.Config, logger *slog.Logger, health *handlers.HealthHa
 	// Metrics endpoint
 	r.Handle("/metrics", promhttp.Handler())
 
-	// API placeholder route
+	// API routes
+	statusHandler := handlers.NewStatusHandler(cfg)
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"status":"online","version":"0.1.0"}`))
-		})
+		r.Get("/status", statusHandler.GetStatus)
 	})
 
 	httpServer := &http.Server{
