@@ -119,7 +119,8 @@ export interface Incident {
 	service: string;
 	severity: 'sev1' | 'sev2' | 'sev3' | 'sev4' | 'sev5' | string;
 	status: 'open' | 'investigating' | 'mitigated' | 'resolved' | 'closed' | string;
-	opened_at: string;
+	opened_at?: string;
+	created_at?: string;
 	resolved_at?: string;
 	updated_at?: string;
 }
@@ -158,12 +159,13 @@ export interface Run {
 
 export interface RunStep {
 	id: string;
+	org_id?: string;
 	run_id: string;
 	step_number: number;
 	step_type: string;
 	tool_name?: string;
-	tool_input?: Record<string, unknown>;
-	tool_output?: Record<string, unknown>;
+	tool_input?: any;
+	tool_output?: any;
 	tokens_in?: number;
 	tokens_out?: number;
 	latency_ms?: number;
@@ -182,7 +184,9 @@ export interface Runbook {
 	org_id: string;
 	title: string;
 	description: string;
-	content_markdown: string;
+	service?: string;
+	content_markdown?: string;
+	markdown_content?: string;
 	created_at: string;
 	updated_at: string;
 }

@@ -186,7 +186,7 @@ export class ApiClient {
 	}
 
 	// Incidents
-	async listIncidents(token: string, limit = 50, offset = 0): Promise<IncidentListResponse> {
+	async listIncidents(token?: string, limit = 50, offset = 0): Promise<IncidentListResponse> {
 		return this.request<IncidentListResponse>(
 			`/api/v1/incidents?limit=${limit}&offset=${offset}`,
 			undefined,
@@ -194,11 +194,11 @@ export class ApiClient {
 		);
 	}
 
-	async getIncident(token: string, id: string): Promise<IncidentDetailResponse> {
+	async getIncident(id: string, token?: string): Promise<IncidentDetailResponse> {
 		return this.request<IncidentDetailResponse>(`/api/v1/incidents/${id}`, undefined, token);
 	}
 
-	async createIncident(token: string, req: CreateIncidentRequest): Promise<Incident> {
+	async createIncident(req: CreateIncidentRequest, token?: string): Promise<Incident> {
 		return this.request<Incident>(
 			'/api/v1/incidents',
 			{
@@ -210,7 +210,15 @@ export class ApiClient {
 		);
 	}
 
-	async updateIncidentStatus(token: string, id: string, status: string): Promise<Incident> {
+	async updateIncidentStatus(arg1: string, arg2: string | { status: string }, arg3?: string): Promise<Incident> {
+		let token = arg3;
+		let id = arg1;
+		let status = typeof arg2 === 'string' ? arg2 : arg2.status;
+		if (typeof arg2 === 'string' && (arg1.startsWith('ey') || arg1.startsWith('tr_live_') || arg1.startsWith('mock-'))) {
+			token = arg1;
+			id = arg2;
+			status = arg3 || '';
+		}
 		return this.request<Incident>(
 			`/api/v1/incidents/${id}/status`,
 			{
@@ -223,11 +231,17 @@ export class ApiClient {
 	}
 
 	// Runs
-	async listIncidentRuns(token: string, incidentId: string): Promise<Run[]> {
+	async listIncidentRuns(incidentId: string, token?: string): Promise<Run[]> {
 		return this.request<Run[]>(`/api/v1/incidents/${incidentId}/runs`, undefined, token);
 	}
 
-	async createRun(token: string, incidentId: string): Promise<Run> {
+	async createRun(arg1: string, arg2?: string): Promise<Run> {
+		let incidentId = arg1;
+		let token = arg2;
+		if (arg1.startsWith('ey') || arg1.startsWith('tr_live_') || arg1.startsWith('mock-')) {
+			token = arg1;
+			incidentId = arg2 || '';
+		}
 		return this.request<Run>(
 			`/api/v1/incidents/${incidentId}/runs`,
 			{ method: 'POST' },
@@ -235,16 +249,16 @@ export class ApiClient {
 		);
 	}
 
-	async getRun(token: string, id: string): Promise<RunDetailResponse> {
+	async getRun(id: string, token?: string): Promise<RunDetailResponse> {
 		return this.request<RunDetailResponse>(`/api/v1/runs/${id}`, undefined, token);
 	}
 
-	async getRunSteps(token: string, id: string): Promise<RunStep[]> {
+	async getRunSteps(id: string, token?: string): Promise<RunStep[]> {
 		return this.request<RunStep[]>(`/api/v1/runs/${id}/steps`, undefined, token);
 	}
 
 	// Runbooks
-	async listRunbooks(token: string): Promise<Runbook[]> {
+	async listRunbooks(token?: string): Promise<Runbook[]> {
 		return this.request<Runbook[]>('/api/v1/runbooks', undefined, token);
 	}
 
