@@ -20,6 +20,9 @@ type Config struct {
 	JWTSecret         string        `json:"-"`
 	ShutdownTimeout   time.Duration `json:"shutdown_timeout"`
 	WorkerConcurrency int           `json:"worker_concurrency"`
+	OpenAIBaseURL     string        `json:"openai_base_url"`
+	OpenAIAPIKey      string        `json:"-"`
+	OpenAIModel       string        `json:"openai_model"`
 }
 
 // Load loads the configuration from system environment variables.
@@ -39,6 +42,9 @@ func LoadFrom(lookup func(string) string) (Config, error) {
 		JWTSecret:         getEnvWithDefault(lookup, "JWT_SECRET", "dev-secret-key-change-in-production-min32chars!"),
 		ShutdownTimeout:   10 * time.Second,
 		WorkerConcurrency: 5,
+		OpenAIBaseURL:     getEnvWithDefault(lookup, "OPENAI_BASE_URL", "https://api.openai.com/v1"),
+		OpenAIAPIKey:      lookup("OPENAI_API_KEY"),
+		OpenAIModel:       getEnvWithDefault(lookup, "OPENAI_MODEL", "gpt-4o"),
 	}
 
 	if timeoutStr := lookup("SHUTDOWN_TIMEOUT"); timeoutStr != "" {
