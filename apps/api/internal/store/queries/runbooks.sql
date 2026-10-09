@@ -16,6 +16,12 @@ ORDER BY updated_at DESC;
 DELETE FROM runbooks
 WHERE org_id = $1 AND id = $2;
 
+-- name: UpdateRunbook :one
+UPDATE runbooks
+SET title = $3, description = $4, content_markdown = $5, updated_at = now()
+WHERE org_id = $1 AND id = $2
+RETURNING *;
+
 -- name: CreateRunbookChunk :one
 INSERT INTO runbook_chunks (org_id, runbook_id, chunk_index, chunk_text, embedding)
 VALUES ($1, $2, $3, $4, $5)

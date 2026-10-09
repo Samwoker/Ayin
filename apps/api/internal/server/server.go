@@ -12,9 +12,12 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/seraph/triage/apps/api/internal/auth"
 	"github.com/seraph/triage/apps/api/internal/config"
 	"github.com/seraph/triage/apps/api/internal/server/handlers"
 	"github.com/seraph/triage/apps/api/internal/server/middleware"
+	"github.com/seraph/triage/apps/api/internal/server/sse"
+	"github.com/seraph/triage/apps/api/internal/store"
 )
 
 // Server represents the HTTP server for triage.
@@ -27,8 +30,29 @@ type Server struct {
 }
 
 // NewServer configures and returns a new Server instance.
-func NewServer(cfg config.Config, logger *slog.Logger, health *handlers.HealthHandler) *Server {
+func NewServer(
+	cfg config.Config,
+	logger *slog.Logger,
+	health *handlers.HealthHandler,
+	st *store.Store,
+	jwtManager *auth.JWTManager,
+	rateLimiter *middleware.RateLimiter,
+	broker *sse.Broker,
+) *Server {
 	r := chi.NewRouter()
+
+	// Defaults if nil (testing support)
+	if jwtManager == nil {
+		jwtManager = auth.NewJWTManager(cfg.JWTSecret)
+	}
+	if rateLimiter == nil {
+		rateLimiter = middleware.NewRateLimiter(nil, 120, time.Minute)
+	}
+	if broker == nil {
+		broker = sse.NewBroker()
+	}
+
+	authenticator := middleware.NewAuthenticator(jwtManager, st)
 
 	// Base middleware stack
 	r.Use(chimiddleware.RealIP)
@@ -36,6 +60,8 @@ func NewServer(cfg config.Config, logger *slog.Logger, health *handlers.HealthHa
 	r.Use(middleware.AccessLogger(logger))
 	r.Use(middleware.Recoverer(logger))
 	r.Use(middleware.CORS)
+	r.Use(authenticator.AuthenticateMiddleware)
+	r.Use(rateLimiter.RateLimitMiddleware)
 
 	// Liveness & Readiness probes
 	r.Get("/healthz", health.Healthz)
@@ -44,10 +70,56 @@ func NewServer(cfg config.Config, logger *slog.Logger, health *handlers.HealthHa
 	// Metrics endpoint
 	r.Handle("/metrics", promhttp.Handler())
 
-	// API routes
+	// Handlers
 	statusHandler := handlers.NewStatusHandler(cfg)
+
 	r.Route("/api/v1", func(r chi.Router) {
+		// Public routes
 		r.Get("/status", statusHandler.GetStatus)
+
+		if st != nil {
+			authHandler := handlers.NewAuthHandler(st, jwtManager)
+			incidentHandler := handlers.NewIncidentHandler(st)
+			runHandler := handlers.NewRunHandler(st, broker)
+			runbookHandler := handlers.NewRunbookHandler(st)
+
+			// Auth public endpoints
+			r.Post("/auth/login", authHandler.Login)
+			r.Post("/auth/refresh", authHandler.Refresh)
+
+			// Protected routes group (enforces tenant authentication)
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireAuth)
+
+				// Real-time SSE Stream (authenticated via header or query token)
+				r.Get("/runs/{id}/stream", runHandler.StreamRun)
+
+				// Identity & API keys
+				r.Get("/auth/me", authHandler.Me)
+				r.Get("/auth/api-keys", authHandler.ListAPIKeys)
+				r.With(middleware.RequireRole(auth.RoleAdmin)).Post("/auth/api-keys", authHandler.CreateAPIKey)
+				r.With(middleware.RequireRole(auth.RoleAdmin)).Delete("/auth/api-keys/{id}", authHandler.RevokeAPIKey)
+
+				// Incidents CRUD
+				r.Get("/incidents", incidentHandler.ListIncidents)
+				r.Get("/incidents/{id}", incidentHandler.GetIncident)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/incidents", incidentHandler.CreateIncident)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Patch("/incidents/{id}/status", incidentHandler.UpdateIncidentStatus)
+
+				// Runs & Steps
+				r.Get("/runs/{id}", runHandler.GetRun)
+				r.Get("/runs/{id}/steps", runHandler.GetRunSteps)
+				r.Get("/incidents/{id}/runs", runHandler.ListRunsForIncident)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/incidents/{id}/runs", runHandler.CreateRun)
+
+				// Runbooks CRUD
+				r.Get("/runbooks", runbookHandler.ListRunbooks)
+				r.Get("/runbooks/{id}", runbookHandler.GetRunbook)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/runbooks", runbookHandler.CreateRunbook)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Put("/runbooks/{id}", runbookHandler.UpdateRunbook)
+				r.With(middleware.RequireRole(auth.RoleAdmin)).Delete("/runbooks/{id}", runbookHandler.DeleteRunbook)
+			})
+		}
 	})
 
 	httpServer := &http.Server{

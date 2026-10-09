@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Triage Incident Agent API
   version: 0.1.0
-  description: Autonomous incident triage agent API for ingestion, investigations, hypotheses, and remediations.
+  description: Autonomous multi-tenant incident triage agent API for ingestion, investigations, hypotheses, and remediations.
 servers:
   - url: http://localhost:8080
     description: Local development server
@@ -46,10 +46,516 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StatusResponse'
+
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate with email and password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: No active organization memberships
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh access token using refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/me:
+    get:
+      summary: Get active tenant and identity profile
+      operationId: getMe
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Current user identity profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/api-keys:
+    get:
+      summary: List API keys for active organization
+      operationId: listApiKeys
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create new API key
+      operationId: createApiKey
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+      responses:
+        '201':
+          description: API key created with raw token shown once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateApiKeyResponse'
+        '403':
+          description: Forbidden (requires admin role)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/api-keys/{id}:
+    delete:
+      summary: Revoke an API key
+      operationId: revokeApiKey
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: API key revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  revoked_at:
+                    type: string
+                    format: date-time
+        '404':
+          description: API key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/incidents:
+    get:
+      summary: List incidents for active organization
+      operationId: listIncidents
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of incidents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentListResponse'
+    post:
+      summary: Create an incident
+      operationId: createIncident
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIncidentRequest'
+      responses:
+        '201':
+          description: Incident created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /api/v1/incidents/{id}:
+    get:
+      summary: Get incident details with alerts and timeline events
+      operationId: getIncident
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detailed incident object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDetailResponse'
+        '404':
+          description: Incident not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/incidents/{id}/status:
+    patch:
+      summary: Update incident status
+      operationId: updateIncidentStatus
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [open, investigating, mitigated, resolved, closed]
+      responses:
+        '200':
+          description: Updated incident
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /api/v1/incidents/{id}/runs:
+    get:
+      summary: List investigation runs for an incident
+      operationId: listIncidentRuns
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Run'
+    post:
+      summary: Launch new investigation run for incident
+      operationId: createRun
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Run created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+
+  /api/v1/runs/{id}:
+    get:
+      summary: Get investigation run details, hypotheses, and steps
+      operationId: getRun
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailResponse'
+
+  /api/v1/runs/{id}/steps:
+    get:
+      summary: List step logs for an investigation run
+      operationId: getRunSteps
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Step logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RunStep'
+
+  /api/v1/runs/{id}/stream:
+    get:
+      summary: Real-time Server-Sent Events (SSE) investigation stream
+      operationId: streamRun
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: token
+          in: query
+          description: Optional auth token for browser EventSource
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event stream of investigation steps and hypotheses
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/v1/runbooks:
+    get:
+      summary: List runbooks for active organization
+      operationId: listRunbooks
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: List of runbooks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Runbook'
+    post:
+      summary: Create new runbook
+      operationId: createRunbook
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRunbookRequest'
+      responses:
+        '201':
+          description: Runbook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Runbook'
+
+  /api/v1/runbooks/{id}:
+    get:
+      summary: Get runbook by ID
+      operationId: getRunbook
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Runbook details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Runbook'
+    put:
+      summary: Update runbook
+      operationId: updateRunbook
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRunbookRequest'
+      responses:
+        '200':
+          description: Updated runbook
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Runbook'
+    delete:
+      summary: Delete runbook
+      operationId: deleteRunbook
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Runbook deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "deleted"
+
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
   schemas:
     HealthResponse:
       type: object
+      required: [status, timestamp, service]
       properties:
         status:
           type: string
@@ -60,12 +566,10 @@ components:
         service:
           type: string
           example: "triage-api"
-      required:
-        - status
-        - timestamp
-        - service
+
     ReadyResponse:
       type: object
+      required: [status, timestamp]
       properties:
         status:
           type: string
@@ -77,11 +581,10 @@ components:
           type: object
           additionalProperties:
             type: string
-      required:
-        - status
-        - timestamp
+
     StatusResponse:
       type: object
+      required: [status, version, service, environment, uptime_seconds, timestamp]
       properties:
         status:
           type: string
@@ -105,19 +608,321 @@ components:
           type: object
           additionalProperties:
             type: string
-      required:
-        - status
-        - version
-        - service
-        - environment
-        - uptime_seconds
-        - timestamp
+
     ErrorResponse:
       type: object
+      required: [error]
       properties:
         error:
           type: string
         request_id:
           type: string
-      required:
-        - error
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        org_id:
+          type: string
+          format: uuid
+
+    LoginResponse:
+      type: object
+      required: [access_token, refresh_token, expires_in, token_type, user, org]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+        token_type:
+          type: string
+          example: "Bearer"
+        user:
+          $ref: '#/components/schemas/UserDTO'
+        org:
+          $ref: '#/components/schemas/OrgDTO'
+
+    UserDTO:
+      type: object
+      required: [id, email, name, role]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+
+    OrgDTO:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, expires_in, token_type]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+        token_type:
+          type: string
+          example: "Bearer"
+
+    MeResponse:
+      type: object
+      required: [user_id, org_id, role, email, is_apikey]
+      properties:
+        user_id:
+          type: string
+        org_id:
+          type: string
+        role:
+          type: string
+        email:
+          type: string
+        is_apikey:
+          type: boolean
+
+    CreateApiKeyRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        expires_in:
+          type: string
+          example: "720h"
+
+    CreateApiKeyResponse:
+      type: object
+      required: [id, name, key_prefix, raw_key, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        key_prefix:
+          type: string
+        raw_key:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ApiKey:
+      type: object
+      required: [id, org_id, name, key_prefix, created_at]
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        name:
+          type: string
+        key_prefix:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        revoked_at:
+          type: string
+          format: date-time
+
+    CreateIncidentRequest:
+      type: object
+      required: [title, service]
+      properties:
+        title:
+          type: string
+        service:
+          type: string
+        severity:
+          type: string
+          enum: [sev1, sev2, sev3, sev4, sev5]
+          default: sev2
+        status:
+          type: string
+          default: open
+
+    Incident:
+      type: object
+      required: [id, org_id, title, service, severity, status, opened_at]
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        title:
+          type: string
+        service:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+        opened_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    IncidentListResponse:
+      type: object
+      required: [incidents, limit, offset]
+      properties:
+        incidents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Incident'
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    IncidentDetailResponse:
+      type: object
+      required: [incident, alerts, events]
+      properties:
+        incident:
+          $ref: '#/components/schemas/Incident'
+        alerts:
+          type: array
+          items:
+            type: object
+        events:
+          type: array
+          items:
+            type: object
+
+    Run:
+      type: object
+      required: [id, org_id, incident_id, status, started_at]
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        incident_id:
+          type: string
+        prompt_version_id:
+          type: string
+        status:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        total_tokens:
+          type: integer
+        total_cost_usd:
+          type: number
+
+    RunDetailResponse:
+      type: object
+      required: [run, hypotheses, steps]
+      properties:
+        run:
+          $ref: '#/components/schemas/Run'
+        hypotheses:
+          type: array
+          items:
+            type: object
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunStep'
+
+    RunStep:
+      type: object
+      required: [id, run_id, step_number, step_type, created_at]
+      properties:
+        id:
+          type: string
+        run_id:
+          type: string
+        step_number:
+          type: integer
+        step_type:
+          type: string
+        tool_name:
+          type: string
+        tool_input:
+          type: object
+        tool_output:
+          type: object
+        tokens_in:
+          type: integer
+        tokens_out:
+          type: integer
+        latency_ms:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    CreateRunbookRequest:
+      type: object
+      required: [title, content_markdown]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        content_markdown:
+          type: string
+
+    Runbook:
+      type: object
+      required: [id, org_id, title, description, content_markdown, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        content_markdown:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time

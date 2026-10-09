@@ -139,6 +139,50 @@ func (q *Queries) ListOrgMembers(ctx context.Context, orgID pgtype.UUID) ([]List
 	return items, nil
 }
 
+const listUserMemberships = `-- name: ListUserMemberships :many
+SELECT m.org_id, m.user_id, m.role, m.created_at, o.name as org_name, o.slug as org_slug
+FROM memberships m
+JOIN orgs o ON o.id = m.org_id
+WHERE m.user_id = $1
+ORDER BY m.created_at ASC
+`
+
+type ListUserMembershipsRow struct {
+	OrgID     pgtype.UUID        `json:"org_id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Role      string             `json:"role"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	OrgName   string             `json:"org_name"`
+	OrgSlug   string             `json:"org_slug"`
+}
+
+func (q *Queries) ListUserMemberships(ctx context.Context, userID pgtype.UUID) ([]ListUserMembershipsRow, error) {
+	rows, err := q.db.Query(ctx, listUserMemberships, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUserMembershipsRow
+	for rows.Next() {
+		var i ListUserMembershipsRow
+		if err := rows.Scan(
+			&i.OrgID,
+			&i.UserID,
+			&i.Role,
+			&i.CreatedAt,
+			&i.OrgName,
+			&i.OrgSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateMembershipRole = `-- name: UpdateMembershipRole :one
 UPDATE memberships
 SET role = $3, updated_at = now()

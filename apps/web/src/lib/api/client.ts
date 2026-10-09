@@ -1,4 +1,25 @@
-import type { HealthResponse, ReadyResponse, StatusResponse, SystemOverview } from './types';
+import type {
+	HealthResponse,
+	ReadyResponse,
+	StatusResponse,
+	SystemOverview,
+	LoginRequest,
+	LoginResponse,
+	TokenPair,
+	MeResponse,
+	ApiKey,
+	CreateApiKeyRequest,
+	CreateApiKeyResponse,
+	Incident,
+	CreateIncidentRequest,
+	IncidentListResponse,
+	IncidentDetailResponse,
+	Run,
+	RunStep,
+	RunDetailResponse,
+	Runbook,
+	CreateRunbookRequest
+} from './types';
 
 export class ApiClient {
 	private baseUrl: string;
@@ -8,10 +29,8 @@ export class ApiClient {
 		if (baseUrl) {
 			this.baseUrl = baseUrl.replace(/\/+$/, '');
 		} else if (typeof window !== 'undefined') {
-			// In browser, allow relative calls or fall back to localhost:8080 if origin differs
 			this.baseUrl = window.location.port === '8080' ? '' : 'http://localhost:8080';
 		} else {
-			// In server environment (SSR / Node)
 			this.baseUrl = process.env.PUBLIC_API_URL || 'http://localhost:8080';
 		}
 		this.customFetch = customFetch;
@@ -27,19 +46,29 @@ export class ApiClient {
 		return fetch;
 	}
 
-	private async request<T>(path: string, options?: RequestInit): Promise<T> {
+	private async request<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
 		const url = `${this.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+		const headers: Record<string, string> = {
+			Accept: 'application/json',
+			...(options?.headers as Record<string, string>)
+		};
+
+		if (token) {
+			if (token.startsWith('tr_live_')) {
+				headers['X-API-Key'] = token;
+			} else {
+				headers['Authorization'] = `Bearer ${token}`;
+			}
+		}
 
 		try {
 			const res = await this.fetcher(url, {
 				...options,
 				signal: controller.signal,
-				headers: {
-					Accept: 'application/json',
-					...options?.headers
-				}
+				headers
 			});
 
 			clearTimeout(timeoutId);
@@ -59,30 +88,19 @@ export class ApiClient {
 		}
 	}
 
-	/**
-	 * GET /healthz - Liveness probe
-	 */
+	// Probes & Status
 	async getHealth(): Promise<HealthResponse> {
 		return this.request<HealthResponse>('/healthz');
 	}
 
-	/**
-	 * GET /readyz - Readiness probe
-	 */
 	async getReady(): Promise<ReadyResponse> {
 		return this.request<ReadyResponse>('/readyz');
 	}
 
-	/**
-	 * GET /api/v1/status - Comprehensive service status
-	 */
 	async getStatus(): Promise<StatusResponse> {
 		return this.request<StatusResponse>('/api/v1/status');
 	}
 
-	/**
-	 * Ping all diagnostic endpoints and compute roundtrip latency
-	 */
 	async checkSystemOverview(): Promise<SystemOverview> {
 		const start = Date.now();
 		try {
@@ -92,26 +110,166 @@ export class ApiClient {
 				this.getStatus()
 			]);
 
-			const latencyMs = Date.now() - start;
-
 			return {
 				connected: true,
-				latencyMs,
+				latencyMs: Date.now() - start,
 				health,
 				ready,
 				status,
 				lastChecked: new Date().toISOString()
 			};
 		} catch (err: unknown) {
-			const latencyMs = Date.now() - start;
-			const message = err instanceof Error ? err.message : String(err);
 			return {
 				connected: false,
-				latencyMs,
+				latencyMs: Date.now() - start,
 				lastChecked: new Date().toISOString(),
-				errorMessage: message
+				errorMessage: err instanceof Error ? err.message : String(err)
 			};
 		}
+	}
+
+	// Auth & Identity
+	async login(req: LoginRequest): Promise<LoginResponse> {
+		return this.request<LoginResponse>('/api/v1/auth/login', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(req)
+		});
+	}
+
+	async refreshToken(refreshToken: string): Promise<TokenPair> {
+		return this.request<TokenPair>('/api/v1/auth/refresh', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ refresh_token: refreshToken })
+		});
+	}
+
+	async getMe(token: string): Promise<MeResponse> {
+		return this.request<MeResponse>('/api/v1/auth/me', undefined, token);
+	}
+
+	async listApiKeys(token: string): Promise<ApiKey[]> {
+		return this.request<ApiKey[]>('/api/v1/auth/api-keys', undefined, token);
+	}
+
+	async createApiKey(token: string, req: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
+		return this.request<CreateApiKeyResponse>(
+			'/api/v1/auth/api-keys',
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req)
+			},
+			token
+		);
+	}
+
+	async revokeApiKey(token: string, id: string): Promise<{ id: string; revoked_at: string }> {
+		return this.request<{ id: string; revoked_at: string }>(
+			`/api/v1/auth/api-keys/${id}`,
+			{ method: 'DELETE' },
+			token
+		);
+	}
+
+	// Incidents
+	async listIncidents(token: string, limit = 50, offset = 0): Promise<IncidentListResponse> {
+		return this.request<IncidentListResponse>(
+			`/api/v1/incidents?limit=${limit}&offset=${offset}`,
+			undefined,
+			token
+		);
+	}
+
+	async getIncident(token: string, id: string): Promise<IncidentDetailResponse> {
+		return this.request<IncidentDetailResponse>(`/api/v1/incidents/${id}`, undefined, token);
+	}
+
+	async createIncident(token: string, req: CreateIncidentRequest): Promise<Incident> {
+		return this.request<Incident>(
+			'/api/v1/incidents',
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req)
+			},
+			token
+		);
+	}
+
+	async updateIncidentStatus(token: string, id: string, status: string): Promise<Incident> {
+		return this.request<Incident>(
+			`/api/v1/incidents/${id}/status`,
+			{
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ status })
+			},
+			token
+		);
+	}
+
+	// Runs
+	async listIncidentRuns(token: string, incidentId: string): Promise<Run[]> {
+		return this.request<Run[]>(`/api/v1/incidents/${incidentId}/runs`, undefined, token);
+	}
+
+	async createRun(token: string, incidentId: string): Promise<Run> {
+		return this.request<Run>(
+			`/api/v1/incidents/${incidentId}/runs`,
+			{ method: 'POST' },
+			token
+		);
+	}
+
+	async getRun(token: string, id: string): Promise<RunDetailResponse> {
+		return this.request<RunDetailResponse>(`/api/v1/runs/${id}`, undefined, token);
+	}
+
+	async getRunSteps(token: string, id: string): Promise<RunStep[]> {
+		return this.request<RunStep[]>(`/api/v1/runs/${id}/steps`, undefined, token);
+	}
+
+	// Runbooks
+	async listRunbooks(token: string): Promise<Runbook[]> {
+		return this.request<Runbook[]>('/api/v1/runbooks', undefined, token);
+	}
+
+	async getRunbook(token: string, id: string): Promise<Runbook> {
+		return this.request<Runbook>(`/api/v1/runbooks/${id}`, undefined, token);
+	}
+
+	async createRunbook(token: string, req: CreateRunbookRequest): Promise<Runbook> {
+		return this.request<Runbook>(
+			'/api/v1/runbooks',
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req)
+			},
+			token
+		);
+	}
+
+	async updateRunbook(token: string, id: string, req: CreateRunbookRequest): Promise<Runbook> {
+		return this.request<Runbook>(
+			`/api/v1/runbooks/${id}`,
+			{
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req)
+			},
+			token
+		);
+	}
+
+	async deleteRunbook(token: string, id: string): Promise<{ status: string }> {
+		return this.request<{ status: string }>(
+			`/api/v1/runbooks/${id}`,
+			{ method: 'DELETE' },
+			token
+		);
 	}
 }
 

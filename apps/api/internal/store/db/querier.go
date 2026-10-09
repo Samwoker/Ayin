@@ -74,6 +74,7 @@ type Querier interface {
 	ListRunbookChunks(ctx context.Context, arg ListRunbookChunksParams) ([]RunbookChunk, error)
 	ListRunbooks(ctx context.Context, orgID pgtype.UUID) ([]Runbook, error)
 	ListRunsForIncident(ctx context.Context, arg ListRunsForIncidentParams) ([]Run, error)
+	ListUserMemberships(ctx context.Context, userID pgtype.UUID) ([]ListUserMembershipsRow, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	RecordUsage(ctx context.Context, arg RecordUsageParams) (UsageLedger, error)
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (ApiKey, error)
@@ -82,6 +83,7 @@ type Querier interface {
 	UpdateMembershipRole(ctx context.Context, arg UpdateMembershipRoleParams) (Membership, error)
 	UpdateRemediationStatus(ctx context.Context, arg UpdateRemediationStatusParams) (Remediation, error)
 	UpdateRunStatus(ctx context.Context, arg UpdateRunStatusParams) (Run, error)
+	UpdateRunbook(ctx context.Context, arg UpdateRunbookParams) (Runbook, error)
 	UpsertOrgBudget(ctx context.Context, arg UpsertOrgBudgetParams) (OrgBudget, error)
 }
 

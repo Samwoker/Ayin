@@ -264,3 +264,39 @@ func (q *Queries) SearchSimilarRunbookChunks(ctx context.Context, arg SearchSimi
 	}
 	return items, nil
 }
+
+const updateRunbook = `-- name: UpdateRunbook :one
+UPDATE runbooks
+SET title = $3, description = $4, content_markdown = $5, updated_at = now()
+WHERE org_id = $1 AND id = $2
+RETURNING id, org_id, title, description, content_markdown, created_at, updated_at
+`
+
+type UpdateRunbookParams struct {
+	OrgID           pgtype.UUID `json:"org_id"`
+	ID              pgtype.UUID `json:"id"`
+	Title           string      `json:"title"`
+	Description     string      `json:"description"`
+	ContentMarkdown string      `json:"content_markdown"`
+}
+
+func (q *Queries) UpdateRunbook(ctx context.Context, arg UpdateRunbookParams) (Runbook, error) {
+	row := q.db.QueryRow(ctx, updateRunbook,
+		arg.OrgID,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.ContentMarkdown,
+	)
+	var i Runbook
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.Title,
+		&i.Description,
+		&i.ContentMarkdown,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

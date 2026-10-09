@@ -25,3 +25,11 @@ RETURNING *;
 -- name: DeleteMembership :exec
 DELETE FROM memberships
 WHERE org_id = $1 AND user_id = $2;
+
+-- name: ListUserMemberships :many
+SELECT m.org_id, m.user_id, m.role, m.created_at, o.name as org_name, o.slug as org_slug
+FROM memberships m
+JOIN orgs o ON o.id = m.org_id
+WHERE m.user_id = $1
+ORDER BY m.created_at ASC;
+

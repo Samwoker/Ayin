@@ -8,9 +8,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
+	"github.com/seraph/triage/apps/api/internal/auth"
 	"github.com/seraph/triage/apps/api/internal/config"
 	"github.com/seraph/triage/apps/api/internal/server"
 	"github.com/seraph/triage/apps/api/internal/server/handlers"
+	"github.com/seraph/triage/apps/api/internal/server/middleware"
+	"github.com/seraph/triage/apps/api/internal/server/sse"
 	"github.com/seraph/triage/apps/api/internal/store"
 	"github.com/seraph/triage/apps/api/internal/telemetry"
 )
@@ -47,7 +52,22 @@ func main() {
 		defer st.Close()
 	}
 
-	srv := server.NewServer(cfg, logger, health)
+	// Initialize Redis for token bucket rate limiter and async jobs
+	var rdb *redis.Client
+	if redisOpts, err := redis.ParseURL(cfg.RedisURL); err == nil {
+		rdb = redis.NewClient(redisOpts)
+		health.RegisterCheck("redis", func(ctx context.Context) error {
+			return rdb.Ping(ctx).Err()
+		})
+		defer rdb.Close()
+	}
+
+	// Core services
+	jwtManager := auth.NewJWTManager(cfg.JWTSecret)
+	rateLimiter := middleware.NewRateLimiter(rdb, 120, time.Minute)
+	broker := sse.NewBroker()
+
+	srv := server.NewServer(cfg, logger, health, st, jwtManager, rateLimiter, broker)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
