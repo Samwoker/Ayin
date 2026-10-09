@@ -13,6 +13,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { Card } from '#lib/components/ui/card/index.js';
+	import { ShieldCheck, CircleX, Zap, Check, Plus, AlertTriangle } from '@lucide/svelte';
 
 	interface Props {
 		mode: 'approve' | 'reject' | 'propose' | null;
@@ -61,13 +62,13 @@
 		<DialogHeader>
 			<DialogTitle class="flex items-center gap-2 text-base font-bold font-sans">
 				{#if mode === 'approve'}
-					<span class="text-emerald-400">🛡️</span>
+					<ShieldCheck class="w-5 h-5 text-emerald-400" />
 					<span>Authorize Remediation Execution</span>
 				{:else if mode === 'reject'}
-					<span class="text-rose-400">✕</span>
+					<CircleX class="w-5 h-5 text-rose-400" />
 					<span>Reject Proposed Remediation</span>
 				{:else}
-					<span>⚡</span>
+					<Zap class="w-5 h-5 text-amber-400" />
 					<span>Propose New Incident Remediation</span>
 				{/if}
 			</DialogTitle>
@@ -129,8 +130,9 @@
 					variant="default"
 					onclick={() => onConfirmApprove(reasonText)}
 					disabled={isSubmitting}
-					class="gap-1.5"
+					class="gap-1.5 shadow-sm active:scale-95"
 				>
+					<Check class="w-3.5 h-3.5" />
 					<span>{isSubmitting ? 'Executing...' : 'Confirm & Execute Action'}</span>
 				</Button>
 			</DialogFooter>
@@ -163,7 +165,9 @@
 					variant="destructive"
 					onclick={() => onConfirmReject(reasonText)}
 					disabled={isSubmitting || !reasonText.trim()}
+					class="gap-1.5 shadow-sm active:scale-95"
 				>
+					<CircleX class="w-3.5 h-3.5" />
 					<span>{isSubmitting ? 'Rejecting...' : 'Confirm Rejection'}</span>
 				</Button>
 			</DialogFooter>
@@ -245,7 +249,9 @@
 							risk_level: proposeRisk
 						})}
 					disabled={isSubmitting || !proposeTarget.trim() || !proposeRationale.trim()}
+					class="gap-1.5 shadow-sm active:scale-95"
 				>
+					<Plus class="w-3.5 h-3.5" />
 					<span>{isSubmitting ? 'Submitting...' : 'Submit Proposal'}</span>
 				</Button>
 			</DialogFooter>

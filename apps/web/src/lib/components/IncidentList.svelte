@@ -3,6 +3,7 @@
 	import { Card } from '#lib/components/ui/card/index.js';
 	import { Badge, type BadgeVariant } from '#lib/components/ui/badge/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
+	import { Search, Clock, Activity, TriangleAlert, CircleCheck, Inbox, Flame } from '@lucide/svelte';
 
 	interface Props {
 		incidents: Incident[];
@@ -71,19 +72,19 @@
 	}
 </script>
 
-<Card class="p-4 border-slate-800 bg-slate-900/60 backdrop-blur-sm space-y-4">
+<Card class="p-4 border-slate-800/80 bg-slate-900/60 backdrop-blur-sm space-y-4 shadow-sm">
 	<!-- Header & Filters -->
 	<div class="space-y-3">
 		<div class="flex items-center justify-between">
-			<h2 class="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+			<h2 class="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-2">
 				<span>Incidents Queue</span>
-				<Badge variant="secondary" class="text-[10px] px-2 py-0">
+				<Badge variant="secondary" class="text-[10px] px-2 py-0 font-mono">
 					{filteredIncidents.length}
 				</Badge>
 			</h2>
 
 			<!-- Status Filter Tabs -->
-			<div class="flex items-center rounded-lg bg-slate-950 p-0.5 border border-slate-800 text-[11px] font-mono">
+			<div class="flex items-center rounded-lg bg-slate-950/80 p-0.5 border border-slate-800 text-[11px] font-mono">
 				<button
 					onclick={() => (selectedStatusFilter = 'all')}
 					class="px-2.5 py-1 rounded-md transition cursor-pointer {selectedStatusFilter === 'all' ? 'bg-slate-800 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
@@ -107,11 +108,11 @@
 
 		<!-- Search Input -->
 		<div class="relative">
-			<span class="absolute left-3 top-2.5 text-slate-500 text-xs">🔍</span>
+			<Search class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-3 pointer-events-none" />
 			<Input
 				placeholder="Search incidents, services..."
 				bind:value={searchQuery}
-				class="pl-8 bg-slate-950 border-slate-800 text-xs h-9"
+				class="pl-8 bg-slate-950/80 border-slate-800 text-xs h-9 focus-visible:ring-rose-500/30"
 			/>
 		</div>
 
@@ -131,8 +132,9 @@
 	<!-- Incident Cards List -->
 	<div class="space-y-2.5 max-h-[640px] overflow-y-auto pr-1">
 		{#if filteredIncidents.length === 0}
-			<div class="p-8 text-center rounded-lg border border-dashed border-slate-800 text-slate-500 text-xs font-mono">
-				No incidents matching filter criteria
+			<div class="p-8 text-center rounded-xl border border-dashed border-slate-800 text-slate-500 text-xs font-mono space-y-2">
+				<Inbox class="w-6 h-6 mx-auto text-slate-600" />
+				<div>No incidents matching filter criteria</div>
 			</div>
 		{:else}
 			{#each filteredIncidents as inc (inc.id)}
@@ -140,10 +142,10 @@
 				<button
 					type="button"
 					onclick={() => onSelect(inc)}
-					class="w-full text-left p-3.5 rounded-xl border transition cursor-pointer text-xs space-y-2 relative overflow-hidden group {isSelected ? 'bg-slate-800/90 border-red-500/80 shadow-md shadow-red-950/20' : 'bg-slate-950/70 border-slate-800/80 hover:bg-slate-900/60 hover:border-slate-700'}"
+					class="w-full text-left p-3.5 rounded-xl border transition cursor-pointer text-xs space-y-2 relative overflow-hidden group {isSelected ? 'bg-slate-800/90 border-rose-500/80 shadow-md shadow-rose-950/20' : 'bg-slate-950/70 border-slate-800/80 hover:bg-slate-900/70 hover:border-slate-700'}"
 				>
 					{#if isSelected}
-						<div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-red-500 to-rose-600"></div>
+						<div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-rose-500 to-red-600 shadow-sm shadow-rose-500/50"></div>
 					{/if}
 
 					<!-- Top Row: Severity & Status -->
@@ -151,6 +153,9 @@
 						<div class="flex items-center gap-2">
 							<!-- Severity Badge -->
 							<Badge variant={getSeverityBadgeVariant(inc.severity)} class="uppercase font-mono text-[10px] px-2 py-0.5">
+								{#if inc.severity === 'sev1'}
+									<Flame class="w-3 h-3 text-red-400 inline -ml-0.5 mr-0.5" />
+								{/if}
 								{inc.severity}
 							</Badge>
 
@@ -161,13 +166,14 @@
 						</div>
 
 						<!-- Time Ago -->
-						<span class="text-[10px] text-slate-500 font-mono">
-							{formatTimeAgo(inc.created_at || inc.opened_at || '')}
-						</span>
+						<div class="flex items-center gap-1 text-[10px] text-slate-500 font-mono">
+							<Clock class="w-3 h-3" />
+							<span>{formatTimeAgo(inc.created_at || inc.opened_at || '')}</span>
+						</div>
 					</div>
 
 					<!-- Title -->
-					<h3 class="font-medium text-slate-100 line-clamp-2 leading-snug group-hover:text-white transition">
+					<h3 class="font-medium text-slate-100 line-clamp-2 leading-snug group-hover:text-white transition font-sans">
 						{inc.title}
 					</h3>
 
@@ -179,20 +185,21 @@
 									<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
 									<span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
 								</span>
+								<Activity class="w-3 h-3 text-indigo-400" />
 								<span class="text-indigo-400 capitalize">Investigating</span>
 							{:else if inc.status === 'open'}
-								<span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
+								<TriangleAlert class="w-3 h-3 text-rose-400" />
 								<span class="text-rose-400 capitalize">Open</span>
 							{:else if inc.status === 'mitigated'}
 								<span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
 								<span class="text-amber-400 capitalize">Mitigated</span>
 							{:else}
-								<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+								<CircleCheck class="w-3 h-3 text-emerald-400" />
 								<span class="text-emerald-400 capitalize">Resolved</span>
 							{/if}
 						</div>
 
-						<span class="text-[10px] text-slate-500">ID: {inc.id.slice(0, 8)}</span>
+						<span class="text-[10px] text-slate-500">#{inc.id.slice(0, 8)}</span>
 					</div>
 				</button>
 			{/each}

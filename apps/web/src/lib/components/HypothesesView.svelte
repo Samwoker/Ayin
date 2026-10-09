@@ -3,6 +3,7 @@
 	import { Card } from '#lib/components/ui/card/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
+	import { Sparkles, Search, ListChecks, Check, ShieldCheck } from '@lucide/svelte';
 
 	interface Props {
 		hypotheses: HypothesisData[];
@@ -45,10 +46,11 @@
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<div>
-			<h2 class="text-sm font-bold text-white uppercase tracking-wider font-mono">
-				Ranked Root-Cause Hypotheses
+			<h2 class="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+				<Sparkles class="w-4 h-4 text-indigo-400" />
+				<span>Ranked Root-Cause Hypotheses</span>
 			</h2>
-			<p class="text-xs text-slate-400">
+			<p class="text-xs text-slate-400 font-sans">
 				Evidence-substantiated causality models formulated by autonomous agent
 			</p>
 		</div>
@@ -65,20 +67,25 @@
 		<div class="space-y-4">
 			{#each hypotheses as hyp, i (hyp.id || i)}
 				{@const colors = confidenceColor(hyp.confidence)}
-				<Card class="p-5 space-y-4 border-slate-800 bg-slate-900/60 backdrop-blur-sm">
+				<Card class="p-5 space-y-4 border-slate-800/80 bg-slate-900/60 backdrop-blur-sm shadow-sm hover:border-slate-700/80 transition-all {i === 0 ? 'ring-1 ring-emerald-500/20' : ''}">
 					<!-- Top Row: Rank & Confidence Meter -->
 					<div class="flex items-start sm:items-center justify-between gap-4 flex-wrap">
 						<div class="flex items-center gap-3">
-							<div class="w-8 h-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center font-mono font-bold text-sm text-white shadow-inner">
+							<div class="w-8 h-8 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center font-mono font-bold text-sm {i === 0 ? 'text-emerald-400 border-emerald-800/60' : 'text-slate-300'} shadow-inner">
 								#{hyp.rank || i + 1}
 							</div>
-							<span class="font-mono text-xs font-bold text-slate-300 uppercase tracking-wider">
-								{i === 0 ? 'Primary Root Cause' : 'Secondary Hypothesis'}
-							</span>
+							<div class="flex items-center gap-2">
+								<span class="font-mono text-xs font-bold uppercase tracking-wider {i === 0 ? 'text-emerald-400' : 'text-slate-300'}">
+									{i === 0 ? 'Primary Root Cause' : 'Secondary Hypothesis'}
+								</span>
+								{#if i === 0}
+									<Badge variant="default" class="text-[10px] py-0 px-1.5 font-mono">Top Rank</Badge>
+								{/if}
+							</div>
 						</div>
 
 						<!-- Confidence Gauge -->
-						<div class="flex items-center gap-3 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+						<div class="flex items-center gap-3 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 shadow-sm">
 							<div class="text-right">
 								<span class="text-[10px] text-slate-500 uppercase font-mono block">Confidence</span>
 								<span class="text-sm font-bold font-mono {colors.text}">
@@ -101,13 +108,13 @@
 					<!-- Evidence Citations List -->
 					<div class="space-y-2">
 						<span class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-							<span>🔎</span>
+							<Search class="w-3.5 h-3.5 text-slate-400" />
 							<span>Observed Telemetry Evidence:</span>
 						</span>
 						<ul class="space-y-1.5 text-xs font-mono">
 							{#each hyp.evidence as item}
-								<li class="flex items-start gap-2.5 p-2 rounded bg-slate-950/60 border border-slate-800/60 text-slate-300">
-									<span class="text-emerald-400 select-none">✓</span>
+								<li class="flex items-start gap-2.5 p-2 rounded-lg bg-slate-950/60 border border-slate-800/60 text-slate-300 hover:border-slate-700/60 transition">
+									<Check class="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
 									<span class="leading-relaxed font-sans text-xs text-slate-200">{item}</span>
 								</li>
 							{/each}
@@ -119,7 +126,7 @@
 					<!-- First-Response Checklist -->
 					<div class="space-y-2 pt-1">
 						<span class="text-[11px] font-mono font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-							<span>📋</span>
+							<ListChecks class="w-3.5 h-3.5 text-indigo-400" />
 							<span>First-Response Action Checklist:</span>
 						</span>
 						<div class="space-y-1.5">

@@ -24,6 +24,8 @@
 	import StatsBar from '#lib/components/StatsBar.svelte';
 	import IncidentList from '#lib/components/IncidentList.svelte';
 	import IncidentDetail from '#lib/components/IncidentDetail.svelte';
+	import { Card } from '#lib/components/ui/card/index.js';
+	import { Inbox } from '@lucide/svelte';
 
 	// Reactive Runes State
 	let backendConnected = $state(false);
@@ -394,7 +396,10 @@
 	<title>triage — Incident Response & Remediation Console</title>
 </svelte:head>
 
-<div class="min-h-screen bg-neutral-950 text-neutral-100 font-sans selection:bg-red-500/20 selection:text-red-400">
+<div class="min-h-screen bg-[#080c15] text-slate-100 font-sans selection:bg-rose-500/20 selection:text-rose-300 relative bg-grid-pattern">
+	<!-- Ambient top glow -->
+	<div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-64 bg-radial from-rose-950/20 via-transparent to-transparent pointer-events-none blur-3xl"></div>
+
 	<!-- Navbar -->
 	<Navbar
 		{backendConnected}
@@ -406,7 +411,7 @@
 	/>
 
 	<!-- Main Workspace Layout -->
-	<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+	<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 relative z-10">
 		<!-- Summary Metrics Bar -->
 		<StatsBar
 			activeCount={activeIncidentsCount}
@@ -418,7 +423,7 @@
 		<!-- Master-Detail 2-Column Responsive Console -->
 		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 			<!-- Left: Incident Feed & Triage Queue (4 cols) -->
-			<div class="lg:col-span-4 sticky top-24">
+			<div class="lg:col-span-4 sticky top-20">
 				<IncidentList
 					{incidents}
 					{selectedIncidentId}
@@ -447,9 +452,10 @@
 						isTriggering={isTriggeringRun}
 					/>
 				{:else}
-					<div class="rounded-xl border border-neutral-800 bg-neutral-900/40 p-12 text-center text-neutral-500 font-mono text-xs">
-						Select an incident from the queue to start investigation
-					</div>
+					<Card class="border-slate-800/80 bg-slate-900/40 p-12 text-center text-slate-500 font-mono text-xs space-y-2 shadow-sm">
+						<Inbox class="w-8 h-8 text-slate-600 mx-auto" />
+						<div>Select an incident from the queue to start investigation</div>
+					</Card>
 				{/if}
 			</div>
 		</div>

@@ -16,7 +16,8 @@
 	import ApprovalModal from './ApprovalModal.svelte';
 	import { Card } from '#lib/components/ui/card/index.js';
 	import { Badge, type BadgeVariant } from '#lib/components/ui/badge/index.js';
-	import { Tabs, TabsList, TabsTrigger, TabsContent } from '#lib/components/ui/tabs/index.js';
+	import { Tabs, TabsList, TabsTrigger } from '#lib/components/ui/tabs/index.js';
+	import { Bot, Sparkles, ShieldCheck, BookOpen, Flame, Tag } from '@lucide/svelte';
 
 	interface Props {
 		incident: Incident;
@@ -139,20 +140,24 @@
 	}
 </script>
 
-<Card class="border-slate-800 bg-slate-900/40 backdrop-blur-sm overflow-hidden flex flex-col">
+<Card class="border-slate-800/80 bg-slate-900/40 backdrop-blur-sm overflow-hidden flex flex-col shadow-sm">
 	<!-- Incident Master Header -->
 	<div class="p-6 border-b border-slate-800/80 bg-slate-900/60 space-y-4">
 		<div class="flex items-start justify-between gap-4 flex-wrap">
-			<div class="space-y-1.5 max-w-2xl">
-				<div class="flex items-center gap-2.5">
+			<div class="space-y-2 max-w-2xl">
+				<div class="flex items-center gap-2.5 flex-wrap">
 					<!-- Severity Badge -->
 					<Badge variant={getSeverityBadgeVariant(incident.severity)} class="uppercase font-mono text-xs px-2.5 py-0.5">
+						{#if incident.severity === 'sev1'}
+							<Flame class="w-3 h-3 text-red-400 inline -ml-0.5 mr-0.5" />
+						{/if}
 						{incident.severity}
 					</Badge>
 
 					<!-- Service Tag -->
-					<span class="px-2.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-mono text-xs font-semibold">
-						{incident.service}
+					<span class="px-2.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-mono text-xs font-semibold flex items-center gap-1.5">
+						<Tag class="w-3 h-3 text-slate-400" />
+						<span>{incident.service}</span>
 					</span>
 
 					<span class="text-xs text-slate-500 font-mono">
@@ -160,7 +165,7 @@
 					</span>
 				</div>
 
-				<h2 class="text-xl font-bold text-white tracking-tight leading-snug">
+				<h2 class="text-xl font-bold text-white tracking-tight leading-snug font-sans">
 					{incident.title}
 				</h2>
 			</div>
@@ -171,7 +176,7 @@
 				<select
 					value={incident.status}
 					onchange={(e) => onStatusChange((e.target as HTMLSelectElement).value)}
-					class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 cursor-pointer capitalize"
+					class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 cursor-pointer capitalize shadow-sm transition"
 				>
 					<option value="open">Open</option>
 					<option value="investigating">Investigating</option>
@@ -183,39 +188,39 @@
 
 		<!-- Navigation Tabs using shadcn Tabs -->
 		<Tabs bind:value={activeTab} class="w-full">
-			<TabsList class="w-full justify-start h-auto p-1 bg-slate-950 border-slate-800 gap-1 overflow-x-auto">
+			<TabsList class="w-full justify-start h-auto p-1 bg-slate-950/90 border-slate-800 gap-1.5 overflow-x-auto">
 				<TabsTrigger value="trace" class="gap-2 text-xs py-2 px-3.5">
-					<span>🤖</span>
+					<Bot class="w-3.5 h-3.5" />
 					<span>Investigation Trace</span>
 					{#if steps.length > 0}
-						<Badge variant="secondary" class="text-[10px] px-1.5 py-0 h-4">
+						<Badge variant="secondary" class="text-[10px] px-1.5 py-0 h-4 font-mono">
 							{steps.length}
 						</Badge>
 					{/if}
 				</TabsTrigger>
 
 				<TabsTrigger value="hypotheses" class="gap-2 text-xs py-2 px-3.5">
-					<span>💡</span>
+					<Sparkles class="w-3.5 h-3.5" />
 					<span>Ranked Hypotheses</span>
 					{#if hypotheses.length > 0}
-						<Badge variant="secondary" class="text-[10px] text-indigo-400 px-1.5 py-0 h-4">
+						<Badge variant="secondary" class="text-[10px] text-indigo-400 px-1.5 py-0 h-4 font-mono">
 							{hypotheses.length}
 						</Badge>
 					{/if}
 				</TabsTrigger>
 
 				<TabsTrigger value="remediations" class="gap-2 text-xs py-2 px-3.5">
-					<span>🛡️</span>
+					<ShieldCheck class="w-3.5 h-3.5" />
 					<span>Remediations & Approvals</span>
 					{#if remediations.length > 0}
-						<Badge variant="warning" class="text-[10px] px-1.5 py-0 h-4">
+						<Badge variant="warning" class="text-[10px] px-1.5 py-0 h-4 font-mono">
 							{remediations.length}
 						</Badge>
 					{/if}
 				</TabsTrigger>
 
 				<TabsTrigger value="runbooks" class="gap-2 text-xs py-2 px-3.5">
-					<span>📖</span>
+					<BookOpen class="w-3.5 h-3.5" />
 					<span>Runbooks</span>
 				</TabsTrigger>
 			</TabsList>

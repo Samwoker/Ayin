@@ -4,6 +4,7 @@
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
+	import { BookOpen, Copy, Check, Terminal } from '@lucide/svelte';
 
 	interface Props {
 		runbooks: Runbook[];
@@ -37,16 +38,17 @@
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<div>
-			<h2 class="text-sm font-bold text-white uppercase tracking-wider font-mono">
-				Operational Runbooks & SOPs
+			<h2 class="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+				<BookOpen class="w-4 h-4 text-sky-400" />
+				<span>Operational Runbooks & SOPs</span>
 			</h2>
-			<p class="text-xs text-slate-400">
+			<p class="text-xs text-slate-400 font-sans">
 				Standard operational guidelines and verified commands for service incident mitigation
 			</p>
 		</div>
 
 		<!-- Selector Tabs if multiple runbooks -->
-		<div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-mono">
+		<div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 text-xs font-mono">
 			{#each runbooks as rb (rb.id)}
 				<button
 					onclick={() => (selectedRunbookId = rb.id)}
@@ -59,7 +61,7 @@
 	</div>
 
 	{#if activeRunbook}
-		<Card class="p-6 space-y-5 border-slate-800 bg-slate-900/60 backdrop-blur-sm">
+		<Card class="p-6 space-y-5 border-slate-800/80 bg-slate-900/60 backdrop-blur-sm shadow-sm">
 			<!-- Title & Service Header -->
 			<div class="border-b border-slate-800/80 pb-4 flex items-start justify-between gap-4 flex-wrap">
 				<div class="space-y-1">
@@ -79,15 +81,16 @@
 
 			<!-- Formatted Runbook Content -->
 			<div class="max-w-none text-xs font-sans text-slate-300 space-y-4">
-				<pre class="p-4 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed overflow-x-auto">{activeRunbook.content_markdown || activeRunbook.markdown_content || ''}</pre>
+				<pre class="p-4 rounded-xl bg-slate-950/90 border border-slate-800 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed overflow-x-auto shadow-inner">{activeRunbook.content_markdown || activeRunbook.markdown_content || ''}</pre>
 			</div>
 
 			<Separator class="bg-slate-800/60" />
 
 			<!-- Quick Diagnostic Command Snippets -->
 			<div class="space-y-2 pt-1">
-				<span class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 block">
-					Quick Copy Command:
+				<span class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+					<Terminal class="w-3.5 h-3.5 text-slate-400" />
+					<span>Quick Copy Command:</span>
 				</span>
 				<div class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-400">
 					<code>kubectl rollout restart deployment/{activeRunbook.service || 'service'} -n prod</code>
@@ -99,9 +102,15 @@
 								`kubectl rollout restart deployment/${activeRunbook.service || 'service'} -n prod`,
 								'cmd-1'
 							)}
-						class="text-[11px] h-7"
+						class="text-[11px] h-7 gap-1.5"
 					>
-						{copiedSnippet === 'cmd-1' ? 'Copied! ✓' : 'Copy'}
+						{#if copiedSnippet === 'cmd-1'}
+							<Check class="w-3 h-3 text-emerald-400" />
+							<span>Copied!</span>
+						{:else}
+							<Copy class="w-3 h-3 text-slate-400" />
+							<span>Copy</span>
+						{/if}
 					</Button>
 				</div>
 			</div>

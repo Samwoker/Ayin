@@ -3,6 +3,22 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Card } from '#lib/components/ui/card/index.js';
+	import {
+		Bot,
+		Terminal,
+		FileText,
+		CircleCheck,
+		Radio,
+		Activity,
+		Play,
+		Timer,
+		Coins,
+		DollarSign,
+		Layers,
+		ChevronDown,
+		ChevronUp,
+		Cpu
+	} from '@lucide/svelte';
 
 	interface Props {
 		run: Run | null;
@@ -35,14 +51,14 @@
 <div class="space-y-4">
 	<!-- Run Overview Header Bar -->
 	{#if run}
-		<Card class="p-4 border-slate-800 bg-slate-900/60 backdrop-blur-sm flex flex-wrap items-center justify-between gap-4">
+		<Card class="p-4 border-slate-800/80 bg-slate-900/60 backdrop-blur-sm flex flex-wrap items-center justify-between gap-4 shadow-sm">
 			<div class="flex items-center gap-3">
-				<div class="w-8 h-8 rounded-lg bg-indigo-950/80 border border-indigo-700/60 flex items-center justify-center text-indigo-400 font-mono font-bold text-xs">
-					RUN
+				<div class="w-9 h-9 rounded-xl bg-indigo-950/80 border border-indigo-700/60 flex items-center justify-center text-indigo-400 font-mono font-bold text-xs shadow-inner">
+					<Cpu class="w-5 h-5 text-indigo-400" />
 				</div>
 				<div>
 					<div class="flex items-center gap-2">
-						<span class="text-xs font-mono text-slate-300 font-bold">
+						<span class="text-xs font-mono text-slate-200 font-bold">
 							Run #{run.id.slice(0, 8)}
 						</span>
 						<!-- Run Status Badge -->
@@ -54,6 +70,9 @@
 									: 'warning'}
 							class="uppercase font-mono text-[10px]"
 						>
+							{#if run.status === 'running'}
+								<Activity class="w-3 h-3 text-sky-400 animate-spin mr-1" />
+							{/if}
 							{run.status}
 						</Badge>
 					</div>
@@ -64,27 +83,39 @@
 			</div>
 
 			<!-- Telemetry Badges (Tokens, Cost, Steps) -->
-			<div class="flex items-center gap-4 text-xs font-mono">
-				<div class="text-right">
-					<span class="text-[10px] text-slate-500 uppercase block">Tokens</span>
-					<span class="text-slate-200 font-semibold">{run.total_tokens?.toLocaleString() || '0'}</span>
+			<div class="flex items-center gap-4 text-xs font-mono flex-wrap">
+				<div class="text-right flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800/80">
+					<Coins class="w-3.5 h-3.5 text-slate-400" />
+					<div>
+						<span class="text-[9px] text-slate-500 uppercase block leading-none">Tokens</span>
+						<span class="text-slate-200 font-semibold">{run.total_tokens?.toLocaleString() || '0'}</span>
+					</div>
 				</div>
-				<div class="text-right">
-					<span class="text-[10px] text-slate-500 uppercase block">Cost</span>
-					<span class="text-emerald-400 font-semibold">{formatCost(run.total_cost_usd)}</span>
+
+				<div class="text-right flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800/80">
+					<DollarSign class="w-3.5 h-3.5 text-emerald-400" />
+					<div>
+						<span class="text-[9px] text-slate-500 uppercase block leading-none">Cost</span>
+						<span class="text-emerald-400 font-semibold">{formatCost(run.total_cost_usd)}</span>
+					</div>
 				</div>
-				<div class="text-right">
-					<span class="text-[10px] text-slate-500 uppercase block">Steps</span>
-					<span class="text-white font-semibold">{steps.length}</span>
+
+				<div class="text-right flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800/80">
+					<Layers class="w-3.5 h-3.5 text-indigo-400" />
+					<div>
+						<span class="text-[9px] text-slate-500 uppercase block leading-none">Steps</span>
+						<span class="text-white font-semibold">{steps.length}</span>
+					</div>
 				</div>
 
 				<!-- Live Streaming SSE Indicator -->
-				<div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-[11px]">
+				<div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px]">
 					{#if isLiveStreaming}
 						<span class="relative flex h-2 w-2">
 							<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
 							<span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
 						</span>
+						<Radio class="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
 						<span class="text-indigo-400 font-medium">SSE Live</span>
 					{:else}
 						<span class="w-2 h-2 rounded-full bg-slate-600 inline-block"></span>
@@ -96,21 +127,23 @@
 					size="sm"
 					onclick={onTriggerRun}
 					disabled={isTriggering}
-					class="bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5"
+					class="bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5 shadow-sm active:scale-95"
 				>
+					<Play class="w-3.5 h-3.5" />
 					<span>{isTriggering ? 'Running...' : 'Re-investigate'}</span>
 				</Button>
 			</div>
 		</Card>
 	{:else}
-		<Card class="border-slate-800 bg-slate-900/40 p-6 text-center space-y-3">
+		<Card class="border-slate-800/80 bg-slate-900/40 p-8 text-center space-y-3 shadow-sm">
+			<Bot class="w-8 h-8 text-indigo-400 mx-auto" />
 			<p class="text-slate-400 text-xs font-mono">No autonomous investigation runs found for this incident</p>
 			<Button
 				onclick={onTriggerRun}
 				disabled={isTriggering}
-				class="bg-indigo-600 hover:bg-indigo-500 text-white gap-2"
+				class="bg-indigo-600 hover:bg-indigo-500 text-white gap-2 shadow-sm active:scale-95"
 			>
-				<span>🚀</span>
+				<Play class="w-4 h-4" />
 				<span>{isTriggering ? 'Dispatching Agent...' : 'Launch Autonomous Investigation'}</span>
 			</Button>
 		</Card>
@@ -120,7 +153,7 @@
 	<div class="space-y-3">
 		{#each steps as step (step.id || step.step_number)}
 			{@const isExpanded = expandedSteps[step.id || String(step.step_number)] ?? true}
-			<Card class="border-slate-800 bg-slate-950/80 overflow-hidden transition p-0">
+			<Card class="border-slate-800/80 bg-slate-950/80 overflow-hidden transition-all duration-150 p-0 shadow-sm hover:border-slate-700/80">
 				<!-- Step Header -->
 				<button
 					type="button"
@@ -135,18 +168,21 @@
 
 						<!-- Step Type Badge -->
 						{#if step.step_type === 'plan'}
-							<Badge variant="sev3" class="font-mono text-[10px]">
-								PLAN
+							<Badge variant="sev3" class="font-mono text-[10px] gap-1">
+								<FileText class="w-3 h-3 text-sky-400" />
+								<span>PLAN</span>
 							</Badge>
-							<span class="text-slate-200 font-medium font-sans">Investigation Strategy & Hypotheses Plan</span>
+							<span class="text-slate-200 font-medium font-sans">Investigation Strategy & Hypotheses Formulation</span>
 						{:else if step.step_type === 'tool_call'}
-							<Badge variant="secondary" class="bg-purple-950/80 border-purple-800/80 text-purple-300 font-mono text-[10px]">
-								TOOL CALL
+							<Badge variant="secondary" class="bg-purple-950/80 border-purple-800/80 text-purple-300 font-mono text-[10px] gap-1">
+								<Terminal class="w-3 h-3 text-purple-400" />
+								<span>TOOL CALL</span>
 							</Badge>
 							<span class="font-mono text-purple-200 font-bold">{step.tool_name}</span>
 						{:else if step.step_type === 'conclusion'}
-							<Badge variant="default" class="font-mono text-[10px]">
-								CONCLUSION
+							<Badge variant="default" class="font-mono text-[10px] gap-1">
+								<CircleCheck class="w-3 h-3 text-emerald-400" />
+								<span>CONCLUSION</span>
 							</Badge>
 							<span class="text-emerald-200 font-medium font-sans">Root-Cause Synthesis & Ranked Hypotheses</span>
 						{:else}
@@ -159,11 +195,18 @@
 					<!-- Latency & Toggle Arrow -->
 					<div class="flex items-center gap-3 font-mono text-[11px] text-slate-400">
 						{#if step.latency_ms}
-							<span class="bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-[10px]">
-								{step.latency_ms}ms
-							</span>
+							<div class="bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-[10px] flex items-center gap-1">
+								<Timer class="w-3 h-3 text-slate-400" />
+								<span>{step.latency_ms}ms</span>
+							</div>
 						{/if}
-						<span class="text-slate-500">{isExpanded ? '▲' : '▼'}</span>
+						<span class="text-slate-500">
+							{#if isExpanded}
+								<ChevronUp class="w-3.5 h-3.5" />
+							{:else}
+								<ChevronDown class="w-3.5 h-3.5" />
+							{/if}
+						</span>
 					</div>
 				</button>
 
