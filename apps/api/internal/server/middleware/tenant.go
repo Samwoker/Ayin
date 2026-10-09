@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -23,6 +25,7 @@ type TenantContext struct {
 	IsAPIKey  bool
 	APIKeyID  pgtype.UUID
 	KeyPrefix string
+	PlanTier  string
 }
 
 // GetTenant retrieves the TenantContext from the request context.
@@ -36,10 +39,16 @@ func SetTenantContext(ctx context.Context, tc TenantContext) context.Context {
 	return context.WithValue(ctx, tenantCtxKey{}, tc)
 }
 
+type cachedPlanTier struct {
+	tier      string
+	expiresAt time.Time
+}
+
 // Authenticator validates Bearer JWT tokens or X-API-Key headers.
 type Authenticator struct {
 	jwtManager *auth.JWTManager
 	store      *store.Store
+	tierCache  sync.Map
 }
 
 // NewAuthenticator creates a new Authenticator.
@@ -48,6 +57,31 @@ func NewAuthenticator(jwtManager *auth.JWTManager, st *store.Store) *Authenticat
 		jwtManager: jwtManager,
 		store:      st,
 	}
+}
+
+func (a *Authenticator) getPlanTier(ctx context.Context, orgID pgtype.UUID) string {
+	if a.store == nil {
+		return "free"
+	}
+	key := string(orgID.Bytes[:])
+	if val, ok := a.tierCache.Load(key); ok {
+		cached := val.(cachedPlanTier)
+		if time.Now().Before(cached.expiresAt) {
+			return cached.tier
+		}
+	}
+
+	org, err := a.store.Queries().GetOrgByID(ctx, orgID)
+	tier := "free"
+	if err == nil && org.PlanTier != "" {
+		tier = org.PlanTier
+	}
+
+	a.tierCache.Store(key, cachedPlanTier{
+		tier:      tier,
+		expiresAt: time.Now().Add(1 * time.Minute),
+	})
+	return tier
 }
 
 // AuthenticateMiddleware extracts and verifies credentials, populating TenantContext.
@@ -74,6 +108,7 @@ func (a *Authenticator) AuthenticateMiddleware(next http.Handler) http.Handler {
 					IsAPIKey:  true,
 					APIKeyID:  dbKey.ID,
 					KeyPrefix: dbKey.KeyPrefix,
+					PlanTier:  a.getPlanTier(r.Context(), dbKey.OrgID),
 				}
 				ctx := SetTenantContext(r.Context(), tc)
 				next.ServeHTTP(w, r.WithContext(ctx))
@@ -99,6 +134,7 @@ func (a *Authenticator) AuthenticateMiddleware(next http.Handler) http.Handler {
 						IsAPIKey:  true,
 						APIKeyID:  dbKey.ID,
 						KeyPrefix: dbKey.KeyPrefix,
+						PlanTier:  a.getPlanTier(r.Context(), dbKey.OrgID),
 					}
 					ctx := SetTenantContext(r.Context(), tc)
 					next.ServeHTTP(w, r.WithContext(ctx))
@@ -122,6 +158,7 @@ func (a *Authenticator) AuthenticateMiddleware(next http.Handler) http.Handler {
 					Role:     claims.Role,
 					Email:    claims.Email,
 					IsAPIKey: false,
+					PlanTier: a.getPlanTier(r.Context(), orgID),
 				}
 				ctx := SetTenantContext(r.Context(), tc)
 				next.ServeHTTP(w, r.WithContext(ctx))

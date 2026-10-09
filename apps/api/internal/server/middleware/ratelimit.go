@@ -45,11 +45,36 @@ else
 end
 `)
 
+// TierLimits defines token-bucket capacity and refill rates for each plan.
+type TierLimits struct {
+	Capacity   int     // Max bucket burst capacity
+	RefillRate float64 // Tokens per second
+	LimitRPM   int     // Requests per minute
+}
+
+var TierPolicies = map[string]TierLimits{
+	"free": {
+		Capacity:   20,
+		RefillRate: 10.0 / 60.0,
+		LimitRPM:   10,
+	},
+	"pro": {
+		Capacity:   100,
+		RefillRate: 60.0 / 60.0,
+		LimitRPM:   60,
+	},
+	"enterprise": {
+		Capacity:   500,
+		RefillRate: 300.0 / 60.0,
+		LimitRPM:   300,
+	},
+}
+
 // RateLimiter manages request throttling per tenant or API key using a token-bucket algorithm.
 type RateLimiter struct {
 	redisClient *redis.Client
-	limit       int           // Max capacity (tokens)
-	refillRate  float64       // Tokens per second
+	limit       int           // Default max capacity (tokens)
+	refillRate  float64       // Default tokens per second
 	window      time.Duration // Duration to completely refill
 	mu          sync.Mutex
 	localCounts map[string]*localBucket
@@ -79,10 +104,32 @@ func NewRateLimiter(redisClient *redis.Client, limit int, window time.Duration) 
 	}
 }
 
-// RateLimitMiddleware throttles incoming requests per organization and per API key.
+func (rl *RateLimiter) resolveTierPolicy(tier string) TierLimits {
+	if tier != "" {
+		if p, ok := TierPolicies[tier]; ok {
+			return p
+		}
+	}
+	return TierLimits{
+		Capacity:   rl.limit,
+		RefillRate: rl.refillRate,
+		LimitRPM:   rl.limit,
+	}
+}
+
+// RateLimitMiddleware throttles incoming requests per organization and per API key according to plan tiers.
 func (rl *RateLimiter) RateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tc, hasTenant := GetTenant(r.Context())
+
+		tier := "custom"
+		if hasTenant && tc.PlanTier != "" {
+			tier = tc.PlanTier
+		} else if !hasTenant {
+			tier = "unauthenticated"
+		}
+
+		policy := rl.resolveTierPolicy(tier)
 
 		var keysToCheck []string
 		if hasTenant {
@@ -102,9 +149,9 @@ func (rl *RateLimiter) RateLimitMiddleware(next http.Handler) http.Handler {
 			keysToCheck = append(keysToCheck, fmt.Sprintf("ip:%s", ip))
 		}
 
-		minRemaining := rl.limit
+		minRemaining := policy.Capacity
 		for _, key := range keysToCheck {
-			allowed, remaining, err := rl.allow(r.Context(), key)
+			allowed, remaining, err := rl.allow(r.Context(), key, policy.Capacity, policy.RefillRate)
 			if err != nil {
 				// Fail open on rate limiter storage errors
 				continue
@@ -113,30 +160,42 @@ func (rl *RateLimiter) RateLimitMiddleware(next http.Handler) http.Handler {
 				minRemaining = remaining
 			}
 			if !allowed {
-				w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", rl.limit))
+				w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", policy.LimitRPM))
 				w.Header().Set("X-RateLimit-Remaining", "0")
+				w.Header().Set("X-RateLimit-Tier", tier)
 				w.Header().Set("Retry-After", "60")
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
-				_ = json.NewEncoder(w).Encode(map[string]string{
-					"error": "Rate limit exceeded. Please try again later.",
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"error":       fmt.Sprintf("Rate limit exceeded for tier '%s' (%d req/min). Upgrade to Pro for higher capacity.", tier, policy.LimitRPM),
+					"tier":        tier,
+					"limit_rpm":   policy.LimitRPM,
+					"upgrade_url": "/billing",
 				})
 				return
 			}
 		}
 
-		w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", rl.limit))
+		w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", policy.LimitRPM))
 		w.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", minRemaining))
+		w.Header().Set("X-RateLimit-Tier", tier)
 
 		next.ServeHTTP(w, r)
 	})
 }
 
-func (rl *RateLimiter) allow(ctx context.Context, key string) (bool, int, error) {
+func (rl *RateLimiter) allow(ctx context.Context, key string, capacity int, refillRate float64) (bool, int, error) {
+	if capacity <= 0 {
+		capacity = rl.limit
+	}
+	if refillRate <= 0 {
+		refillRate = rl.refillRate
+	}
+
 	if rl.redisClient != nil {
 		redisKey := fmt.Sprintf("ratelimit:%s", key)
 		nowUnix := time.Now().Unix()
-		res, err := tokenBucketLua.Run(ctx, rl.redisClient, []string{redisKey}, rl.limit, rl.refillRate, nowUnix, 1).Slice()
+		res, err := tokenBucketLua.Run(ctx, rl.redisClient, []string{redisKey}, capacity, refillRate, nowUnix, 1).Slice()
 		if err == nil && len(res) == 2 {
 			allowedCode, ok1 := res[0].(int64)
 			remainingTokens, ok2 := res[1].(int64)
@@ -154,15 +213,15 @@ func (rl *RateLimiter) allow(ctx context.Context, key string) (bool, int, error)
 	b, exists := rl.localCounts[key]
 	if !exists {
 		rl.localCounts[key] = &localBucket{
-			tokens:      float64(rl.limit - 1),
+			tokens:      float64(capacity - 1),
 			lastUpdated: now,
 		}
-		return true, rl.limit - 1, nil
+		return true, capacity - 1, nil
 	}
 
 	// Refill tokens according to elapsed duration
 	elapsed := now.Sub(b.lastUpdated).Seconds()
-	b.tokens = math.Min(float64(rl.limit), b.tokens+(elapsed*rl.refillRate))
+	b.tokens = math.Min(float64(capacity), b.tokens+(elapsed*refillRate))
 	b.lastUpdated = now
 
 	if b.tokens < 1.0 {

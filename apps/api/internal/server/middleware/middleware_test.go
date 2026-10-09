@@ -254,3 +254,54 @@ func TestRateLimiterTokenBucket(t *testing.T) {
 		t.Errorf("other org expected 200, got %d", recOther.Code)
 	}
 }
+
+func TestTieredRateLimiter(t *testing.T) {
+	limiter := NewRateLimiter(nil, 120, time.Minute)
+	handler := limiter.RateLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	var orgID pgtype.UUID
+	_ = orgID.Scan("50000000-0000-0000-0000-000000000001")
+
+	// Free tier request
+	freeCtx := TenantContext{
+		OrgID:    orgID,
+		Role:     auth.RoleResponder,
+		PlanTier: "free",
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/incidents", nil)
+	req = req.WithContext(SetTenantContext(context.Background(), freeCtx))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 OK, got %d", rec.Code)
+	}
+	if rec.Header().Get("X-RateLimit-Tier") != "free" {
+		t.Errorf("expected tier 'free', got %s", rec.Header().Get("X-RateLimit-Tier"))
+	}
+	if rec.Header().Get("X-RateLimit-Limit") != "10" {
+		t.Errorf("expected limit '10', got %s", rec.Header().Get("X-RateLimit-Limit"))
+	}
+
+	// Pro tier request
+	var proOrgID pgtype.UUID
+	_ = proOrgID.Scan("50000000-0000-0000-0000-000000000002")
+	proCtx := TenantContext{
+		OrgID:    proOrgID,
+		Role:     auth.RoleResponder,
+		PlanTier: "pro",
+	}
+	reqPro := httptest.NewRequest(http.MethodGet, "/api/v1/incidents", nil)
+	reqPro = reqPro.WithContext(SetTenantContext(context.Background(), proCtx))
+	recPro := httptest.NewRecorder()
+	handler.ServeHTTP(recPro, reqPro)
+
+	if recPro.Header().Get("X-RateLimit-Tier") != "pro" {
+		t.Errorf("expected tier 'pro', got %s", recPro.Header().Get("X-RateLimit-Tier"))
+	}
+	if recPro.Header().Get("X-RateLimit-Limit") != "60" {
+		t.Errorf("expected limit '60', got %s", recPro.Header().Get("X-RateLimit-Limit"))
+	}
+}

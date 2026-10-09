@@ -394,6 +394,63 @@ describe('ApiClient', () => {
 		const rb = await client.rollbackRemediation('rem-1', { reason: 'Revert test' }, 'jwt_token_123');
 		expect(rb.remediation.status).toBe('rolled_back');
 	});
+
+	it('fetches billing plans, subscription, and initiates checkout and portal sessions', async () => {
+		const mockPlans = {
+			plans: [
+				{ tier: 'free', name: 'Free', price_usd: 0, monthly_runs_limit: 10, rate_limit_rpm: 10, concurrency: 1, features: [] },
+				{ tier: 'pro', name: 'Pro', price_usd: 49, monthly_runs_limit: 250, rate_limit_rpm: 60, concurrency: 5, features: [] }
+			]
+		};
+
+		const mockSub = {
+			org_id: 'org-123',
+			plan_tier: 'pro',
+			status: 'active',
+			monthly_runs_limit: 250,
+			monthly_runs_used: 12,
+			monthly_runs_remaining: 238,
+			reset_at: '2026-11-01T00:00:00Z'
+		};
+
+		const mockCheckout = { checkout_url: 'https://checkout.stripe.com/pay/cs_123' };
+		const mockPortal = { portal_url: 'https://billing.stripe.com/p/session/bps_123' };
+
+		const mockFetch = vi
+			.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockPlans
+			} as Response)
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockSub
+			} as Response)
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockCheckout
+			} as Response)
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockPortal
+			} as Response);
+
+		const client = new ApiClient('http://test-host:8080', mockFetch);
+
+		const plansRes = await client.getBillingPlans();
+		expect(plansRes.plans).toHaveLength(2);
+
+		const subRes = await client.getSubscription('token_abc');
+		expect(subRes.plan_tier).toBe('pro');
+		expect(subRes.monthly_runs_remaining).toBe(238);
+
+		const checkoutRes = await client.createCheckoutSession({ success_url: 'http://localhost/success' }, 'token_abc');
+		expect(checkoutRes.checkout_url).toBe('https://checkout.stripe.com/pay/cs_123');
+
+		const portalRes = await client.createPortalSession({ return_url: 'http://localhost/return' }, 'token_abc');
+		expect(portalRes.portal_url).toBe('https://billing.stripe.com/p/session/bps_123');
+	});
 });
+
 
 

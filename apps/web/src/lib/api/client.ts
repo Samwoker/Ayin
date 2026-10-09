@@ -30,7 +30,11 @@ import type {
 	RemediationListResponse,
 	RemediationDetailResponse,
 	RemediationApprovalResponse,
-	RemediationRollbackResponse
+	RemediationRollbackResponse,
+	PlanInfo,
+	SubscriptionInfo,
+	CheckoutSessionResponse,
+	PortalSessionResponse
 } from './types';
 
 export class ApiClient {
@@ -425,6 +429,56 @@ export class ApiClient {
 	async rollbackRemediation(remediationId: string, req?: RollbackRemediationRequest, token?: string): Promise<RemediationRollbackResponse> {
 		return this.request<RemediationRollbackResponse>(
 			`/api/v1/remediations/${remediationId}/rollback`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req || {})
+			},
+			token
+		);
+	}
+
+	/**
+	 * Phase 8: Get available billing tiers & features catalog
+	 */
+	async getBillingPlans(): Promise<{ plans: PlanInfo[] }> {
+		return this.request<{ plans: PlanInfo[] }>('/api/v1/billing/plans');
+	}
+
+	/**
+	 * Phase 8: Get active organization subscription & monthly run usage
+	 */
+	async getSubscription(token?: string): Promise<SubscriptionInfo> {
+		return this.request<SubscriptionInfo>('/api/v1/billing/subscription', undefined, token);
+	}
+
+	/**
+	 * Phase 8: Create Stripe Checkout session to upgrade to Pro
+	 */
+	async createCheckoutSession(
+		req?: { success_url?: string; cancel_url?: string },
+		token?: string
+	): Promise<CheckoutSessionResponse> {
+		return this.request<CheckoutSessionResponse>(
+			'/api/v1/billing/checkout',
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req || {})
+			},
+			token
+		);
+	}
+
+	/**
+	 * Phase 8: Create Stripe Customer Portal session to manage cards & invoices
+	 */
+	async createPortalSession(
+		req?: { return_url?: string },
+		token?: string
+	): Promise<PortalSessionResponse> {
+		return this.request<PortalSessionResponse>(
+			'/api/v1/billing/portal',
 			{
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },

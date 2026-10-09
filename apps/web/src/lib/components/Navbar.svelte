@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { Radio, Zap, RefreshCw, Server, Activity } from '@lucide/svelte';
+	import { Radio, Zap, RefreshCw, Server, Activity, Sparkles, CreditCard, ShieldCheck } from '@lucide/svelte';
 
 	interface Props {
 		backendConnected: boolean;
 		latencyMs: number;
 		activeTenant: string;
+		planTier?: string;
+		runsUsed?: number;
+		runsLimit?: number;
 		onSimulate: () => void;
 		onRefresh: () => void;
+		onOpenPricing?: () => void;
 		isRefreshing: boolean;
 	}
 
@@ -16,8 +20,12 @@
 		backendConnected = false,
 		latencyMs = 0,
 		activeTenant = 'Acme Corp (Primary)',
+		planTier = 'free',
+		runsUsed = 0,
+		runsLimit = 10,
 		onSimulate,
 		onRefresh,
+		onOpenPricing,
 		isRefreshing = false
 	}: Props = $props();
 </script>
@@ -37,6 +45,10 @@
 				<Badge variant="sev1" class="text-[10px] px-2 py-0 animate-none font-mono">
 					v0.1.0
 				</Badge>
+				<span class="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-950/50 border border-indigo-700/40 text-indigo-300">
+					<Sparkles class="w-3 h-3 text-indigo-400" />
+					Gemini 2.5
+				</span>
 			</div>
 			<p class="text-[11px] text-slate-400 font-sans">Autonomous Incident Response & HITL Remediation Engine</p>
 		</div>
@@ -53,6 +65,49 @@
 				{activeTenant}
 			</span>
 		</div>
+
+		<!-- Plan Tier Pill / Pricing Trigger -->
+		{#if planTier === 'pro'}
+			<button
+				onclick={onOpenPricing}
+				class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-[11px] bg-indigo-950/60 border-indigo-700/70 text-indigo-200 hover:bg-indigo-900/60 hover:border-indigo-500 transition cursor-pointer shadow-sm shadow-indigo-950/30"
+				title="Active Pro Tier. Click to manage subscription."
+			>
+				<Sparkles class="w-3.5 h-3.5 text-indigo-400" />
+				<span class="font-bold">PRO</span>
+				<span class="text-indigo-300/80 text-[10px]">({runsUsed}/{runsLimit} runs)</span>
+			</button>
+		{:else if planTier === 'enterprise'}
+			<button
+				onclick={onOpenPricing}
+				class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-[11px] bg-emerald-950/60 border-emerald-700/70 text-emerald-200 hover:bg-emerald-900/60 transition cursor-pointer"
+				title="Enterprise Tier. Click for details."
+			>
+				<ShieldCheck class="w-3.5 h-3.5 text-emerald-400" />
+				<span class="font-bold">ENTERPRISE</span>
+			</button>
+		{:else}
+			<button
+				onclick={onOpenPricing}
+				class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-[11px] bg-slate-900/90 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white transition cursor-pointer"
+				title="Free Tier. Click to view plans or upgrade."
+			>
+				<Zap class="w-3.5 h-3.5 text-amber-400" />
+				<span>FREE</span>
+				<span class="text-slate-400 text-[10px]">({runsUsed}/{runsLimit} runs)</span>
+			</button>
+
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={onOpenPricing}
+				class="border-indigo-500/50 bg-indigo-950/30 hover:bg-indigo-900/50 text-indigo-200 hover:text-white gap-1.5 shadow-sm active:scale-95 transition"
+				title="Upgrade to Pro with Stripe"
+			>
+				<CreditCard class="w-3.5 h-3.5 text-indigo-400" />
+				<span>Upgrade</span>
+			</Button>
+		{/if}
 
 		<!-- Live Backend Connection Pill -->
 		<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border font-mono text-[11px] {backendConnected ? 'bg-emerald-950/50 border-emerald-800/70 text-emerald-300 shadow-sm shadow-emerald-950/20' : 'bg-amber-950/50 border-amber-800/70 text-amber-300'}">

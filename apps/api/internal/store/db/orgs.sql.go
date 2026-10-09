@@ -14,7 +14,7 @@ import (
 const createOrg = `-- name: CreateOrg :one
 INSERT INTO orgs (name, slug)
 VALUES ($1, $2)
-RETURNING id, name, slug, created_at, updated_at, webhook_secret
+RETURNING id, name, slug, created_at, updated_at, webhook_secret, plan_tier, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, monthly_runs_limit, monthly_runs_used, monthly_runs_reset_at
 `
 
 type CreateOrgParams struct {
@@ -32,12 +32,20 @@ func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) (Org, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.WebhookSecret,
+		&i.PlanTier,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.CurrentPeriodEnd,
+		&i.MonthlyRunsLimit,
+		&i.MonthlyRunsUsed,
+		&i.MonthlyRunsResetAt,
 	)
 	return i, err
 }
 
 const getOrgByID = `-- name: GetOrgByID :one
-SELECT id, name, slug, created_at, updated_at, webhook_secret FROM orgs
+SELECT id, name, slug, created_at, updated_at, webhook_secret, plan_tier, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, monthly_runs_limit, monthly_runs_used, monthly_runs_reset_at FROM orgs
 WHERE id = $1
 `
 
@@ -51,12 +59,20 @@ func (q *Queries) GetOrgByID(ctx context.Context, id pgtype.UUID) (Org, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.WebhookSecret,
+		&i.PlanTier,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.CurrentPeriodEnd,
+		&i.MonthlyRunsLimit,
+		&i.MonthlyRunsUsed,
+		&i.MonthlyRunsResetAt,
 	)
 	return i, err
 }
 
 const getOrgBySlug = `-- name: GetOrgBySlug :one
-SELECT id, name, slug, created_at, updated_at, webhook_secret FROM orgs
+SELECT id, name, slug, created_at, updated_at, webhook_secret, plan_tier, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, monthly_runs_limit, monthly_runs_used, monthly_runs_reset_at FROM orgs
 WHERE slug = $1
 `
 
@@ -70,12 +86,89 @@ func (q *Queries) GetOrgBySlug(ctx context.Context, slug string) (Org, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.WebhookSecret,
+		&i.PlanTier,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.CurrentPeriodEnd,
+		&i.MonthlyRunsLimit,
+		&i.MonthlyRunsUsed,
+		&i.MonthlyRunsResetAt,
 	)
 	return i, err
 }
 
+const getOrgByStripeCustomerID = `-- name: GetOrgByStripeCustomerID :one
+SELECT id, name, slug, created_at, updated_at, webhook_secret, plan_tier, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, monthly_runs_limit, monthly_runs_used, monthly_runs_reset_at FROM orgs
+WHERE stripe_customer_id = $1
+`
+
+func (q *Queries) GetOrgByStripeCustomerID(ctx context.Context, stripeCustomerID pgtype.Text) (Org, error) {
+	row := q.db.QueryRow(ctx, getOrgByStripeCustomerID, stripeCustomerID)
+	var i Org
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.WebhookSecret,
+		&i.PlanTier,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.CurrentPeriodEnd,
+		&i.MonthlyRunsLimit,
+		&i.MonthlyRunsUsed,
+		&i.MonthlyRunsResetAt,
+	)
+	return i, err
+}
+
+const getOrgByStripeSubscriptionID = `-- name: GetOrgByStripeSubscriptionID :one
+SELECT id, name, slug, created_at, updated_at, webhook_secret, plan_tier, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, monthly_runs_limit, monthly_runs_used, monthly_runs_reset_at FROM orgs
+WHERE stripe_subscription_id = $1
+`
+
+func (q *Queries) GetOrgByStripeSubscriptionID(ctx context.Context, stripeSubscriptionID pgtype.Text) (Org, error) {
+	row := q.db.QueryRow(ctx, getOrgByStripeSubscriptionID, stripeSubscriptionID)
+	var i Org
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.WebhookSecret,
+		&i.PlanTier,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.CurrentPeriodEnd,
+		&i.MonthlyRunsLimit,
+		&i.MonthlyRunsUsed,
+		&i.MonthlyRunsResetAt,
+	)
+	return i, err
+}
+
+const incrementOrgMonthlyRunsUsed = `-- name: IncrementOrgMonthlyRunsUsed :one
+UPDATE orgs
+SET monthly_runs_used = monthly_runs_used + 1,
+    updated_at = now()
+WHERE id = $1
+RETURNING monthly_runs_used
+`
+
+func (q *Queries) IncrementOrgMonthlyRunsUsed(ctx context.Context, id pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementOrgMonthlyRunsUsed, id)
+	var monthly_runs_used int32
+	err := row.Scan(&monthly_runs_used)
+	return monthly_runs_used, err
+}
+
 const listOrgs = `-- name: ListOrgs :many
-SELECT id, name, slug, created_at, updated_at, webhook_secret FROM orgs
+SELECT id, name, slug, created_at, updated_at, webhook_secret, plan_tier, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, monthly_runs_limit, monthly_runs_used, monthly_runs_reset_at FROM orgs
 ORDER BY created_at DESC
 `
 
@@ -95,6 +188,14 @@ func (q *Queries) ListOrgs(ctx context.Context) ([]Org, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.WebhookSecret,
+			&i.PlanTier,
+			&i.StripeCustomerID,
+			&i.StripeSubscriptionID,
+			&i.SubscriptionStatus,
+			&i.CurrentPeriodEnd,
+			&i.MonthlyRunsLimit,
+			&i.MonthlyRunsUsed,
+			&i.MonthlyRunsResetAt,
 		); err != nil {
 			return nil, err
 		}
@@ -104,4 +205,88 @@ func (q *Queries) ListOrgs(ctx context.Context) ([]Org, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const resetOrgMonthlyRuns = `-- name: ResetOrgMonthlyRuns :one
+UPDATE orgs
+SET monthly_runs_used = 0,
+    monthly_runs_reset_at = now(),
+    updated_at = now()
+WHERE id = $1
+RETURNING id, name, slug, created_at, updated_at, webhook_secret, plan_tier, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, monthly_runs_limit, monthly_runs_used, monthly_runs_reset_at
+`
+
+func (q *Queries) ResetOrgMonthlyRuns(ctx context.Context, id pgtype.UUID) (Org, error) {
+	row := q.db.QueryRow(ctx, resetOrgMonthlyRuns, id)
+	var i Org
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.WebhookSecret,
+		&i.PlanTier,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.CurrentPeriodEnd,
+		&i.MonthlyRunsLimit,
+		&i.MonthlyRunsUsed,
+		&i.MonthlyRunsResetAt,
+	)
+	return i, err
+}
+
+const updateOrgSubscription = `-- name: UpdateOrgSubscription :one
+UPDATE orgs
+SET plan_tier = $2,
+    stripe_customer_id = $3,
+    stripe_subscription_id = $4,
+    subscription_status = $5,
+    current_period_end = $6,
+    monthly_runs_limit = $7,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, name, slug, created_at, updated_at, webhook_secret, plan_tier, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, monthly_runs_limit, monthly_runs_used, monthly_runs_reset_at
+`
+
+type UpdateOrgSubscriptionParams struct {
+	ID                   pgtype.UUID        `json:"id"`
+	PlanTier             string             `json:"plan_tier"`
+	StripeCustomerID     pgtype.Text        `json:"stripe_customer_id"`
+	StripeSubscriptionID pgtype.Text        `json:"stripe_subscription_id"`
+	SubscriptionStatus   string             `json:"subscription_status"`
+	CurrentPeriodEnd     pgtype.Timestamptz `json:"current_period_end"`
+	MonthlyRunsLimit     int32              `json:"monthly_runs_limit"`
+}
+
+func (q *Queries) UpdateOrgSubscription(ctx context.Context, arg UpdateOrgSubscriptionParams) (Org, error) {
+	row := q.db.QueryRow(ctx, updateOrgSubscription,
+		arg.ID,
+		arg.PlanTier,
+		arg.StripeCustomerID,
+		arg.StripeSubscriptionID,
+		arg.SubscriptionStatus,
+		arg.CurrentPeriodEnd,
+		arg.MonthlyRunsLimit,
+	)
+	var i Org
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.WebhookSecret,
+		&i.PlanTier,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+		&i.SubscriptionStatus,
+		&i.CurrentPeriodEnd,
+		&i.MonthlyRunsLimit,
+		&i.MonthlyRunsUsed,
+		&i.MonthlyRunsResetAt,
+	)
+	return i, err
 }

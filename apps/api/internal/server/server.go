@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/seraph/triage/apps/api/internal/auth"
+	"github.com/seraph/triage/apps/api/internal/billing"
 	"github.com/seraph/triage/apps/api/internal/config"
 	"github.com/seraph/triage/apps/api/internal/ingest"
 	"github.com/seraph/triage/apps/api/internal/remediation"
@@ -100,6 +101,10 @@ func NewServer(
 			runHandler := handlers.NewRunHandler(st, broker)
 			runbookHandler := handlers.NewRunbookHandler(st)
 
+			// Stripe Billing Service & Handlers
+			billingService := billing.NewService(cfg, st, logger)
+			billingHandler := handlers.NewBillingHandler(billingService)
+
 			// Ingestion & Deduplication
 			grouper := ingest.NewAlertGrouper(st, queue, 30*time.Minute)
 			ingestHandler := ingest.NewIngestHandler(st, nil, grouper)
@@ -107,6 +112,10 @@ func NewServer(
 			// Webhook Ingestion endpoints (authenticated via HMAC)
 			r.Post("/ingest/webhooks/{source}", ingestHandler.HandleWebhook)
 			r.Post("/ingest/{org_id}/webhooks/{source}", ingestHandler.HandleWebhook)
+
+			// Stripe Webhook endpoint (unauthenticated, HMAC verified) & Public Plans catalog
+			r.Get("/billing/plans", billingHandler.GetPlans)
+			r.Post("/billing/webhook", billingHandler.HandleWebhook)
 
 			// Auth public endpoints
 			r.Post("/auth/login", authHandler.Login)
@@ -124,6 +133,11 @@ func NewServer(
 				r.Get("/auth/api-keys", authHandler.ListAPIKeys)
 				r.With(middleware.RequireRole(auth.RoleAdmin)).Post("/auth/api-keys", authHandler.CreateAPIKey)
 				r.With(middleware.RequireRole(auth.RoleAdmin)).Delete("/auth/api-keys/{id}", authHandler.RevokeAPIKey)
+
+				// Billing & Subscriptions
+				r.Get("/billing/subscription", billingHandler.GetSubscription)
+				r.Post("/billing/checkout", billingHandler.CreateCheckout)
+				r.Post("/billing/portal", billingHandler.CreatePortal)
 
 				// Incidents CRUD
 				r.Get("/incidents", incidentHandler.ListIncidents)

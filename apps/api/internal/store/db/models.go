@@ -153,12 +153,20 @@ type Membership struct {
 }
 
 type Org struct {
-	ID            pgtype.UUID        `json:"id"`
-	Name          string             `json:"name"`
-	Slug          string             `json:"slug"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	WebhookSecret string             `json:"webhook_secret"`
+	ID                   pgtype.UUID        `json:"id"`
+	Name                 string             `json:"name"`
+	Slug                 string             `json:"slug"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+	WebhookSecret        string             `json:"webhook_secret"`
+	PlanTier             string             `json:"plan_tier"`
+	StripeCustomerID     pgtype.Text        `json:"stripe_customer_id"`
+	StripeSubscriptionID pgtype.Text        `json:"stripe_subscription_id"`
+	SubscriptionStatus   string             `json:"subscription_status"`
+	CurrentPeriodEnd     pgtype.Timestamptz `json:"current_period_end"`
+	MonthlyRunsLimit     int32              `json:"monthly_runs_limit"`
+	MonthlyRunsUsed      int32              `json:"monthly_runs_used"`
+	MonthlyRunsResetAt   pgtype.Timestamptz `json:"monthly_runs_reset_at"`
 }
 
 type OrgBudget struct {

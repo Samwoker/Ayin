@@ -58,17 +58,24 @@ func main() {
 	// Initialize SSE broker for real-time trace streaming
 	broker := sse.NewBroker()
 
-	// Initialize LLM Client (OpenAI with fallback to deterministic mock)
+	// Initialize LLM Client (Gemini or OpenAI with fallback to deterministic mock)
 	var llm agent.LLMClient
-	if cfg.OpenAIAPIKey != "" {
+	switch {
+	case cfg.LLMProvider == "gemini" && cfg.GeminiAPIKey != "":
+		llm = agent.NewGeminiLLMClient(cfg.GeminiAPIKey, cfg.GeminiBaseURL, cfg.GeminiModel, nil)
+		logger.Info("configured Google Gemini LLM client",
+			slog.String("model", cfg.GeminiModel),
+			slog.String("base_url", cfg.GeminiBaseURL),
+		)
+	case cfg.OpenAIAPIKey != "":
 		llm = agent.NewOpenAILLMClient(cfg.OpenAIAPIKey, cfg.OpenAIBaseURL, cfg.OpenAIModel, nil)
 		logger.Info("configured OpenAI LLM client",
 			slog.String("model", cfg.OpenAIModel),
 			slog.String("base_url", cfg.OpenAIBaseURL),
 		)
-	} else {
+	default:
 		llm = agent.NewMockLLMClient()
-		logger.Info("configured deterministic mock LLM client (OPENAI_API_KEY not set)")
+		logger.Info("configured deterministic mock LLM client (no LLM API keys configured)")
 	}
 
 	// Initialize Autonomous Agent Runner

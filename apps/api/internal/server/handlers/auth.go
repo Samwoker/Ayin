@@ -52,9 +52,12 @@ type UserDTO struct {
 }
 
 type OrgDTO struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Slug string `json:"slug"`
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Slug             string `json:"slug"`
+	PlanTier         string `json:"plan_tier"`
+	MonthlyRunsLimit int32  `json:"monthly_runs_limit"`
+	MonthlyRunsUsed  int32  `json:"monthly_runs_used"`
 }
 
 // Login verifies credentials and issues JWT token pair.
@@ -100,6 +103,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	planTier := "free"
+	var runsLimit int32 = 10
+	var runsUsed int32 = 0
+	if org, err := h.store.Queries().GetOrgByID(r.Context(), selected.OrgID); err == nil {
+		if org.PlanTier != "" {
+			planTier = org.PlanTier
+		}
+		runsLimit = org.MonthlyRunsLimit
+		runsUsed = org.MonthlyRunsUsed
+	}
+
 	respondJSON(w, http.StatusOK, LoginResponse{
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
@@ -112,9 +126,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Role:  selected.Role,
 		},
 		Org: OrgDTO{
-			ID:   uuidToString(selected.OrgID),
-			Name: selected.OrgName,
-			Slug: selected.OrgSlug,
+			ID:               uuidToString(selected.OrgID),
+			Name:             selected.OrgName,
+			Slug:             selected.OrgSlug,
+			PlanTier:         planTier,
+			MonthlyRunsLimit: runsLimit,
+			MonthlyRunsUsed:  runsUsed,
 		},
 	})
 }
@@ -156,12 +173,18 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tier := tc.PlanTier
+	if tier == "" {
+		tier = "free"
+	}
+
 	respondJSON(w, http.StatusOK, map[string]any{
 		"user_id":   uuidToString(tc.UserID),
 		"org_id":    uuidToString(tc.OrgID),
 		"role":      tc.Role,
 		"email":     tc.Email,
 		"is_apikey": tc.IsAPIKey,
+		"plan_tier": tier,
 	})
 }
 

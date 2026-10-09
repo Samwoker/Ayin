@@ -58,6 +58,9 @@ export interface OrgDTO {
 	id: string;
 	name: string;
 	slug: string;
+	plan_tier?: PlanTier;
+	monthly_runs_limit?: number;
+	monthly_runs_used?: number;
 }
 
 export interface LoginResponse {
@@ -336,4 +339,42 @@ export interface RemediationRollbackResponse {
 	remediation: Remediation;
 	rollback?: Record<string, unknown>;
 }
+
+// Phase 8: Billing, Stripe Plans & Quota Types
+export type PlanTier = 'free' | 'pro' | 'enterprise';
+
+export interface PlanInfo {
+	tier: PlanTier;
+	name: string;
+	description: string;
+	price_usd: number;
+	monthly_runs_limit: number;
+	rate_limit_rpm: number;
+	concurrency: number;
+	features: string[];
+}
+
+export interface SubscriptionInfo {
+	org_id: string;
+	plan_tier: PlanTier;
+	status: string;
+	stripe_customer_id?: string;
+	stripe_subscription_id?: string;
+	current_period_end?: string;
+	monthly_runs_limit: number;
+	monthly_runs_used: number;
+	monthly_runs_remaining: number;
+	reset_at: string;
+	publishable_key?: string;
+	pro_price_id?: string;
+}
+
+export interface CheckoutSessionResponse {
+	checkout_url: string;
+}
+
+export interface PortalSessionResponse {
+	portal_url: string;
+}
+
 

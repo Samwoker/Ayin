@@ -61,8 +61,21 @@ func RunEvaluation(ctx context.Context, cfg EvalConfig) (*BenchmarkReport, error
 				return nil, fmt.Errorf("OPENAI_API_KEY is required for openai provider")
 			}
 			llm = agent.NewOpenAILLMClient(apiKey, "", cfg.Model, nil)
+		case "gemini":
+			apiKey := cfg.APIKey
+			if apiKey == "" {
+				apiKey = os.Getenv("GEMINI_API_KEY")
+			}
+			if apiKey == "" {
+				return nil, fmt.Errorf("GEMINI_API_KEY is required for gemini provider")
+			}
+			model := cfg.Model
+			if model == "" {
+				model = "gemini-2.5-flash"
+			}
+			llm = agent.NewGeminiLLMClient(apiKey, "", model, nil)
 		default:
-			return nil, fmt.Errorf("unsupported eval LLM provider %q (supported: mock, openai)", cfg.Provider)
+			return nil, fmt.Errorf("unsupported eval LLM provider %q (supported: mock, openai, gemini)", cfg.Provider)
 		}
 
 		agentCfg := agent.DefaultAgentConfig()

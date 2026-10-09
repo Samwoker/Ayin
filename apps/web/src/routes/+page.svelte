@@ -7,7 +7,8 @@
 		RunStep,
 		Remediation,
 		RemediationEvent,
-		Runbook
+		Runbook,
+		SubscriptionInfo
 	} from '#lib/api/types';
 	import {
 		DEMO_INCIDENTS,
@@ -24,6 +25,7 @@
 	import StatsBar from '#lib/components/StatsBar.svelte';
 	import IncidentList from '#lib/components/IncidentList.svelte';
 	import IncidentDetail from '#lib/components/IncidentDetail.svelte';
+	import PricingModal from '#lib/components/PricingModal.svelte';
 	import { Card } from '#lib/components/ui/card/index.js';
 	import { Inbox } from '@lucide/svelte';
 
@@ -33,6 +35,8 @@
 	let isRefreshing = $state(false);
 	let isTriggeringRun = $state(false);
 	let isLiveStreaming = $state(false);
+	let isPricingOpen = $state(false);
+	let subscription = $state<SubscriptionInfo | null>(null);
 	let activeEventSource: EventSource | null = null;
 
 	let incidents = $state<Incident[]>(DEMO_INCIDENTS);
@@ -105,6 +109,14 @@
 				const rbs = await apiClient.listRunbooks();
 				if (Array.isArray(rbs) && rbs.length > 0) {
 					runbooks = rbs;
+				}
+				try {
+					const sub = await apiClient.getSubscription();
+					if (sub) {
+						subscription = sub;
+					}
+				} catch {
+					// Fallback if unauthenticated in dev
 				}
 			}
 		} catch (e) {
@@ -221,6 +233,12 @@
 				stepsMap[mockRunId] = DEMO_RUN_STEPS['50000000-0000-0000-0000-000000000001'] || [];
 				hypothesesMap[mockRunId] = DEMO_HYPOTHESES['50000000-0000-0000-0000-000000000001'] || [];
 			}
+		} catch (err: unknown) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			if (errMsg.includes('402') || errMsg.includes('QUOTA_EXCEEDED') || errMsg.includes('quota')) {
+				isPricingOpen = true;
+			}
+			console.error('Run execution error:', err);
 		} finally {
 			isTriggeringRun = false;
 		}
@@ -405,8 +423,12 @@
 		{backendConnected}
 		{latencyMs}
 		activeTenant="Acme Corp (Primary)"
+		planTier={subscription?.plan_tier || 'pro'}
+		runsUsed={subscription?.monthly_runs_used ?? 12}
+		runsLimit={subscription?.monthly_runs_limit ?? 250}
 		onSimulate={handleSimulateAlert}
 		onRefresh={syncIncidents}
+		onOpenPricing={() => (isPricingOpen = true)}
 		{isRefreshing}
 	/>
 
@@ -460,4 +482,11 @@
 			</div>
 		</div>
 	</main>
+
+	<!-- Subscription & Billing Management Modal -->
+	<PricingModal
+		isOpen={isPricingOpen}
+		onClose={() => (isPricingOpen = false)}
+		{subscription}
+	/>
 </div>

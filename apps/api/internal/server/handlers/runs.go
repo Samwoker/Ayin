@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -45,8 +46,16 @@ func (h *RunHandler) CreateRun(w http.ResponseWriter, r *http.Request) {
 
 	var run db.Run
 	err := h.store.WithOrgTx(r.Context(), tc.OrgID, func(q *db.Queries) error {
+		// Check monthly run quota
+		org, err := q.GetOrgByID(r.Context(), tc.OrgID)
+		if err == nil {
+			if org.MonthlyRunsLimit > 0 && org.MonthlyRunsUsed >= org.MonthlyRunsLimit {
+				return fmt.Errorf("QUOTA_EXCEEDED:monthly investigation run limit reached (%d/%d for %s plan)", org.MonthlyRunsUsed, org.MonthlyRunsLimit, org.PlanTier)
+			}
+		}
+
 		// Verify incident belongs to org
-		_, err := q.GetIncidentByID(r.Context(), db.GetIncidentByIDParams{
+		_, err = q.GetIncidentByID(r.Context(), db.GetIncidentByIDParams{
 			OrgID: tc.OrgID,
 			ID:    incidentID,
 		})
@@ -83,10 +92,23 @@ func (h *RunHandler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			ToolInput:  toolInput,
 		})
 
+		// Track usage towards monthly limit
+		_, _ = q.IncrementOrgMonthlyRunsUsed(r.Context(), tc.OrgID)
+
 		return nil
 	})
 
 	if err != nil {
+		if strings.Contains(err.Error(), "QUOTA_EXCEEDED") {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusPaymentRequired) // 402 Payment Required
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"error":       "Monthly investigation run quota reached. Upgrade to Pro for 250 runs/month.",
+				"code":        "QUOTA_EXCEEDED",
+				"upgrade_url": "/billing",
+			})
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "Failed to create run: "+err.Error())
 		return
 	}
