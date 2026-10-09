@@ -15,6 +15,7 @@ import (
 	"github.com/seraph/triage/apps/api/internal/auth"
 	"github.com/seraph/triage/apps/api/internal/config"
 	"github.com/seraph/triage/apps/api/internal/ingest"
+	"github.com/seraph/triage/apps/api/internal/remediation"
 	"github.com/seraph/triage/apps/api/internal/server/handlers"
 	"github.com/seraph/triage/apps/api/internal/server/middleware"
 	"github.com/seraph/triage/apps/api/internal/server/sse"
@@ -147,6 +148,16 @@ func NewServer(
 				toolsHandler := handlers.NewToolsHandler(toolsRegistry)
 				r.Get("/tools", toolsHandler.ListTools)
 				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/tools/{name}/execute", toolsHandler.ExecuteTool)
+
+				// Proposed Remediations & Human-in-the-Loop Approval Workflow
+				remediationService := remediation.NewRemediationService(st, nil, broker, logger)
+				remediationHandler := handlers.NewRemediationHandler(remediationService)
+				r.Get("/incidents/{id}/remediations", remediationHandler.ListRemediationsForIncident)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/incidents/{id}/remediations", remediationHandler.ProposeRemediation)
+				r.Get("/remediations/{id}", remediationHandler.GetRemediation)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/remediations/{id}/approve", remediationHandler.ApproveRemediation)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/remediations/{id}/reject", remediationHandler.RejectRemediation)
+				r.With(middleware.RequireRole(auth.RoleAdmin)).Post("/remediations/{id}/rollback", remediationHandler.RollbackRemediation)
 			})
 		}
 	})

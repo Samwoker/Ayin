@@ -284,6 +284,116 @@ describe('ApiClient', () => {
 		expect(result.success).toBe(true);
 		expect(result.tool).toBe('service_topology');
 	});
+
+	it('lists remediations for an incident', async () => {
+		const mockResponse = {
+			remediations: [
+				{
+					id: 'rem-1',
+					action_type: 'restart_service',
+					target: 'checkout-worker',
+					status: 'proposed'
+				}
+			],
+			count: 1
+		};
+
+		const mockFetch = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => mockResponse
+		} as Response);
+
+		const client = new ApiClient('http://test-host:8080', mockFetch);
+		const result = await client.listRemediationsForIncident('inc-123', 'jwt_token_123');
+
+		expect(mockFetch).toHaveBeenCalledWith(
+			'http://test-host:8080/api/v1/incidents/inc-123/remediations',
+			expect.objectContaining({
+				headers: expect.objectContaining({
+					Authorization: 'Bearer jwt_token_123'
+				})
+			})
+		);
+		expect(result.remediations).toHaveLength(1);
+		expect(result.remediations[0].action_type).toBe('restart_service');
+	});
+
+	it('proposes and approves remediation successfully', async () => {
+		const mockProposed = {
+			id: 'rem-1',
+			incident_id: 'inc-123',
+			action_type: 'scale_service',
+			target: 'payment-api',
+			status: 'proposed'
+		};
+
+		const mockApproved = {
+			remediation: {
+				id: 'rem-1',
+				status: 'succeeded'
+			},
+			execution: { success: true }
+		};
+
+		const mockFetch = vi
+			.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockProposed
+			} as Response)
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockApproved
+			} as Response);
+
+		const client = new ApiClient('http://test-host:8080', mockFetch);
+		const prop = await client.proposeRemediation(
+			'inc-123',
+			{
+				action_type: 'scale_service',
+				target: 'payment-api',
+				rationale: 'Traffic spike'
+			},
+			'jwt_token_123'
+		);
+		expect(prop.id).toBe('rem-1');
+
+		const app = await client.approveRemediation('rem-1', { reason: 'Looks good' }, 'jwt_token_123');
+		expect(app.remediation.status).toBe('succeeded');
+	});
+
+	it('rejects and rolls back remediation', async () => {
+		const mockRejected = {
+			id: 'rem-2',
+			status: 'rejected'
+		};
+
+		const mockRollback = {
+			remediation: {
+				id: 'rem-1',
+				status: 'rolled_back'
+			},
+			rollback: { success: true }
+		};
+
+		const mockFetch = vi
+			.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockRejected
+			} as Response)
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockRollback
+			} as Response);
+
+		const client = new ApiClient('http://test-host:8080', mockFetch);
+		const rej = await client.rejectRemediation('rem-2', { reason: 'Unsafe' }, 'jwt_token_123');
+		expect(rej.status).toBe('rejected');
+
+		const rb = await client.rollbackRemediation('rem-1', { reason: 'Revert test' }, 'jwt_token_123');
+		expect(rb.remediation.status).toBe('rolled_back');
+	});
 });
 
 

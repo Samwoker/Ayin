@@ -21,7 +21,16 @@ import type {
 	CreateRunbookRequest,
 	WebhookIngestResponse,
 	ToolListResponse,
-	ToolExecutionResult
+	ToolExecutionResult,
+	Remediation,
+	ProposeRemediationRequest,
+	ApproveRemediationRequest,
+	RejectRemediationRequest,
+	RollbackRemediationRequest,
+	RemediationListResponse,
+	RemediationDetailResponse,
+	RemediationApprovalResponse,
+	RemediationRollbackResponse
 } from './types';
 
 export class ApiClient {
@@ -333,6 +342,79 @@ export class ApiClient {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(params)
+			},
+			token
+		);
+	}
+	/**
+	 * Phase 7: List remediations for an incident
+	 */
+	async listRemediationsForIncident(incidentId: string, token?: string): Promise<RemediationListResponse> {
+		return this.request<RemediationListResponse>(`/api/v1/incidents/${incidentId}/remediations`, undefined, token);
+	}
+
+	/**
+	 * Phase 7: Propose a remediation for an incident
+	 */
+	async proposeRemediation(incidentId: string, req: ProposeRemediationRequest, token?: string): Promise<Remediation> {
+		return this.request<Remediation>(
+			`/api/v1/incidents/${incidentId}/remediations`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req)
+			},
+			token
+		);
+	}
+
+	/**
+	 * Phase 7: Get remediation details and audit event trail
+	 */
+	async getRemediation(remediationId: string, token?: string): Promise<RemediationDetailResponse> {
+		return this.request<RemediationDetailResponse>(`/api/v1/remediations/${remediationId}`, undefined, token);
+	}
+
+	/**
+	 * Phase 7: Approve and execute a proposed remediation
+	 */
+	async approveRemediation(remediationId: string, req?: ApproveRemediationRequest, token?: string): Promise<RemediationApprovalResponse> {
+		return this.request<RemediationApprovalResponse>(
+			`/api/v1/remediations/${remediationId}/approve`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req || {})
+			},
+			token
+		);
+	}
+
+	/**
+	 * Phase 7: Reject a proposed remediation
+	 */
+	async rejectRemediation(remediationId: string, req?: RejectRemediationRequest, token?: string): Promise<Remediation> {
+		return this.request<Remediation>(
+			`/api/v1/remediations/${remediationId}/reject`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req || {})
+			},
+			token
+		);
+	}
+
+	/**
+	 * Phase 7: Rollback a succeeded remediation
+	 */
+	async rollbackRemediation(remediationId: string, req?: RollbackRemediationRequest, token?: string): Promise<RemediationRollbackResponse> {
+		return this.request<RemediationRollbackResponse>(
+			`/api/v1/remediations/${remediationId}/rollback`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(req || {})
 			},
 			token
 		);

@@ -719,6 +719,214 @@ paths:
               schema:
                 $ref: '#/components/schemas/ToolExecutionResult'
 
+  /api/v1/incidents/{id}/remediations:
+    get:
+      summary: List remediations for an incident
+      operationId: listRemediationsForIncident
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of remediations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemediationListResponse'
+    post:
+      summary: Propose a remediation for an incident
+      operationId: proposeRemediation
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposeRemediationRequest'
+      responses:
+        '201':
+          description: Remediation proposed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Remediation'
+        '400':
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/remediations/{id}:
+    get:
+      summary: Get remediation details and audit event trail
+      operationId: getRemediation
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Remediation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemediationDetailResponse'
+        '404':
+          description: Remediation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/remediations/{id}/approve:
+    post:
+      summary: Approve and execute a proposed remediation
+      operationId: approveRemediation
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveRemediationRequest'
+      responses:
+        '200':
+          description: Remediation approved and executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemediationApprovalResponse'
+        '404':
+          description: Remediation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Invalid transition state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '410':
+          description: Remediation expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/remediations/{id}/reject:
+    post:
+      summary: Reject a proposed remediation
+      operationId: rejectRemediation
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRemediationRequest'
+      responses:
+        '200':
+          description: Remediation rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Remediation'
+        '404':
+          description: Remediation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Invalid transition state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/remediations/{id}/rollback:
+    post:
+      summary: Rollback a succeeded remediation
+      operationId: rollbackRemediation
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackRemediationRequest'
+      responses:
+        '200':
+          description: Remediation rolled back
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemediationRollbackResponse'
+        '404':
+          description: Remediation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Invalid transition state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1179,5 +1387,169 @@ components:
           type: integer
           example: 42
         metadata:
+          type: object
+          additionalProperties: true
+
+    Remediation:
+      type: object
+      required: [id, org_id, incident_id, action_type, target, rationale, risk_level, expected_effect, rollback_plan, status, expires_at, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+        hypothesis_id:
+          type: string
+          format: uuid
+          nullable: true
+        action_type:
+          type: string
+          enum: [restart_service, scale_service, rollback_deploy, clear_cache, pause_consumer, toggle_feature_flag]
+        target:
+          type: string
+          example: "payment-api"
+        params:
+          type: object
+          additionalProperties: true
+        rationale:
+          type: string
+        risk_level:
+          type: string
+          enum: [low, medium, high, critical]
+        expected_effect:
+          type: string
+        rollback_plan:
+          type: string
+        status:
+          type: string
+          enum: [proposed, approved, rejected, expired, executing, succeeded, failed, rolled_back]
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RemediationEvent:
+      type: object
+      required: [id, org_id, remediation_id, transition_from, transition_to, reason, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        remediation_id:
+          type: string
+          format: uuid
+        transition_from:
+          type: string
+        transition_to:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ProposeRemediationRequest:
+      type: object
+      required: [action_type, target, rationale]
+      properties:
+        action_type:
+          type: string
+          enum: [restart_service, scale_service, rollback_deploy, clear_cache, pause_consumer, toggle_feature_flag]
+        target:
+          type: string
+        params:
+          type: object
+          additionalProperties: true
+        rationale:
+          type: string
+        risk_level:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
+        expected_effect:
+          type: string
+        rollback_plan:
+          type: string
+        hypothesis_id:
+          type: string
+          format: uuid
+        ttl_seconds:
+          type: integer
+          default: 900
+
+    ApproveRemediationRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    RejectRemediationRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    RollbackRemediationRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    RemediationListResponse:
+      type: object
+      required: [remediations, count]
+      properties:
+        remediations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Remediation'
+        count:
+          type: integer
+
+    RemediationDetailResponse:
+      type: object
+      required: [remediation, events]
+      properties:
+        remediation:
+          $ref: '#/components/schemas/Remediation'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/RemediationEvent'
+
+    RemediationApprovalResponse:
+      type: object
+      required: [remediation]
+      properties:
+        remediation:
+          $ref: '#/components/schemas/Remediation'
+        execution:
+          type: object
+          additionalProperties: true
+
+    RemediationRollbackResponse:
+      type: object
+      required: [remediation]
+      properties:
+        remediation:
+          $ref: '#/components/schemas/Remediation'
+        rollback:
           type: object
           additionalProperties: true

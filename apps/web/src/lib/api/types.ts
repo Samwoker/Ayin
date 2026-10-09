@@ -239,3 +239,97 @@ export interface ToolExecutionResult {
 	metadata?: Record<string, unknown>;
 }
 
+// Phase 7: Remediations & Human-in-the-Loop (HITL)
+export type RemediationActionType =
+	| 'restart_service'
+	| 'scale_service'
+	| 'rollback_deploy'
+	| 'clear_cache'
+	| 'pause_consumer'
+	| 'toggle_feature_flag';
+
+export type RemediationRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export type RemediationStatus =
+	| 'proposed'
+	| 'approved'
+	| 'rejected'
+	| 'expired'
+	| 'executing'
+	| 'succeeded'
+	| 'failed'
+	| 'rolled_back';
+
+export interface Remediation {
+	id: string;
+	org_id: string;
+	incident_id: string;
+	hypothesis_id?: string | null;
+	action_type: RemediationActionType;
+	target: string;
+	params: Record<string, unknown>;
+	rationale: string;
+	risk_level: RemediationRiskLevel;
+	expected_effect: string;
+	rollback_plan: string;
+	status: RemediationStatus;
+	expires_at: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface RemediationEvent {
+	id: string;
+	org_id: string;
+	remediation_id: string;
+	transition_from: string;
+	transition_to: string;
+	user_id?: string | null;
+	reason: string;
+	created_at: string;
+}
+
+export interface ProposeRemediationRequest {
+	action_type: RemediationActionType;
+	target: string;
+	params?: Record<string, unknown>;
+	rationale: string;
+	risk_level?: RemediationRiskLevel;
+	expected_effect?: string;
+	rollback_plan?: string;
+	hypothesis_id?: string;
+	ttl_seconds?: number;
+}
+
+export interface ApproveRemediationRequest {
+	reason?: string;
+}
+
+export interface RejectRemediationRequest {
+	reason?: string;
+}
+
+export interface RollbackRemediationRequest {
+	reason?: string;
+}
+
+export interface RemediationListResponse {
+	remediations: Remediation[];
+	count: number;
+}
+
+export interface RemediationDetailResponse {
+	remediation: Remediation;
+	events: RemediationEvent[];
+}
+
+export interface RemediationApprovalResponse {
+	remediation: Remediation;
+	execution?: Record<string, unknown>;
+}
+
+export interface RemediationRollbackResponse {
+	remediation: Remediation;
+	rollback?: Record<string, unknown>;
+}
+
