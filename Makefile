@@ -44,18 +44,19 @@ lint-web:
 	@echo "==> Running Web typecheck..."
 	cd apps/web && npm run check
 
-## Database Migration (Phase 2+)
+## Database Migration & Seeding
 migrate:
 	@echo "==> Running database migrations..."
-	@if [ -d "apps/api/internal/store/migrations" ]; then \
-		echo "Applying goose migrations..."; \
-	else \
-		echo "Migrations directory will be initialized in Phase 2."; \
-	fi
+	cd apps/api && go run ./cmd/seed
+
+seed:
+	@echo "==> Seeding database with demo tenants and scenario data..."
+	cd apps/api && go run ./cmd/seed
 
 ## Code Generation
 gen:
-	@echo "==> Generating OpenAPI & SvelteKit contracts..."
+	@echo "==> Generating sqlc database models and SvelteKit contracts..."
+	cd apps/api && sqlc generate
 	cd apps/web && npm run prepare
 
 ## Evaluation Benchmarks
@@ -80,6 +81,7 @@ build-api:
 	cd apps/api && go build -o bin/simulate ./cmd/simulate
 	cd apps/api && go build -o bin/mcp ./cmd/mcp
 	cd apps/api && go build -o bin/triage ./cmd/triage
+	cd apps/api && go build -o bin/seed ./cmd/seed
 
 build-web:
 	@echo "==> Building SvelteKit production bundle..."
