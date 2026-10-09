@@ -1,0 +1,94 @@
+id: redis-replica-flap
+name: Redis Replica Replication Buffer Overflow
+description: Bulk cache invalidation exceeding replication client-output-buffer-limit causing full resync loop
+service: session-cache
+severity: sev2
+source: alertmanager
+environment:
+  deploys:
+    - version: v1.4.1
+      commit: 4b29f01
+      author: heidi@example.com
+      message: "chore(cron): nightly cache warmup job scheduling"
+      timestamp: "2026-10-09T03:00:00Z"
+      status: deployed
+  metrics:
+    redis_connected_slaves:
+      unit: count
+      values:
+        - timestamp: "2026-10-09T14:00:00Z"
+          value: 3
+        - timestamp: "2026-10-09T14:15:00Z"
+          value: 0
+        - timestamp: "2026-10-09T14:20:00Z"
+          value: 1
+    redis_master_repl_offset:
+      unit: bytes
+      values:
+        - timestamp: "2026-10-09T14:00:00Z"
+          value: 104857600
+        - timestamp: "2026-10-09T14:20:00Z"
+          value: 524288000
+  logs:
+    - timestamp: "2026-10-09T14:12:05Z"
+      level: WARN
+      service: session-cache
+      message: "Scheduled job bulk-evict-sessions flushed 450,000 keys in pipeline"
+    - timestamp: "2026-10-09T14:14:32Z"
+      level: ERROR
+      service: session-cache
+      message: "Client id=104 addr=10.0.4.12:6379 (slave) scheduled to be closed ASAP for overcoming of output buffer limits (client-output-buffer-limit slave 256mb 64mb 60)"
+    - timestamp: "2026-10-09T14:15:01Z"
+      level: ERROR
+      service: session-cache
+      message: "Master <-> Replica synchronization lost: replica disconnected; initiating full BGSAVE resync"
+  topology:
+    service: session-cache
+    upstream:
+      - auth-service
+      - web-gateway
+    downstream:
+      - redis-primary
+      - redis-replica-1
+      - redis-replica-2
+  runbooks:
+    - title: "Redis Replication Lag & Buffer Overflow SOP"
+      service: session-cache
+      content: "When replica disconnects due to buffer limits: 1) Pause large bulk eviction jobs. 2) Increase client-output-buffer-limit replica dynamically. 3) Selectively clear cache keys instead of mass flush."
+  similar_incidents:
+    - title: "INC-329: Redis replica flap on marketing campaign push"
+      resolution: "Throttled cache invalidation pipeline and doubled replication buffer ceiling"
+      similarity: 0.90
+
+alert:
+  title: "Redis Replica Disconnection Storm"
+  description: "Redis master session-cache disconnected from all 3 replicas due to replication buffer overflow"
+  fingerprint: "redis-repl-buffer-overflow-sev2"
+  labels:
+    alertname: RedisReplicationDisconnected
+    service: session-cache
+    severity: warning
+  annotations:
+    summary: "Replication buffer exceeded 256MB threshold causing replica eviction and full resync storm"
+
+ground_truth:
+  expected_root_causes:
+    - "client-output-buffer-limit"
+    - "replication buffer"
+    - "bulk-evict"
+    - "replica disconnected"
+  forbidden_root_causes:
+    - "PostgreSQL failure"
+    - "disk corruption"
+  min_confidence: 0.85
+  required_evidence:
+    - "client-output-buffer-limit"
+    - "bulk-evict-sessions"
+    - "disconnected"
+  required_tools:
+    - "log_search"
+    - "query_metrics"
+    - "search_runbooks"
+  expected_remediation: "pause_consumer"
+  max_steps: 6
+  max_tokens: 8000

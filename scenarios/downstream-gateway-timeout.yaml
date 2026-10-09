@@ -1,0 +1,93 @@
+id: downstream-gateway-timeout
+name: Downstream Payment Gateway Timeout & Circuit Breaker Cascade
+description: External Stripe API latency spike causing HTTP thread exhaustion and circuit breaker trip
+service: billing-service
+severity: sev1
+source: pagerduty
+environment:
+  deploys:
+    - version: v2.4.0
+      commit: d89a12c
+      author: grace@example.com
+      message: "feat(stripe): upgrade stripe-go SDK to v78"
+      timestamp: "2026-10-08T18:00:00Z"
+      status: deployed
+  metrics:
+    http_client_duration_seconds:
+      unit: seconds
+      values:
+        - timestamp: "2026-10-09T14:00:00Z"
+          value: 0.18
+        - timestamp: "2026-10-09T14:15:00Z"
+          value: 14.85
+        - timestamp: "2026-10-09T14:20:00Z"
+          value: 29.40
+    circuit_breaker_state:
+      unit: state
+      values:
+        - timestamp: "2026-10-09T14:00:00Z"
+          value: 0 # Closed (healthy)
+        - timestamp: "2026-10-09T14:20:00Z"
+          value: 1 # Open (tripped)
+  logs:
+    - timestamp: "2026-10-09T14:18:02Z"
+      level: WARN
+      service: billing-service
+      message: "Stripe API call POST /v1/charges timed out after 30000ms"
+    - timestamp: "2026-10-09T14:19:44Z"
+      level: ERROR
+      service: billing-service
+      message: "hystrix/gobreaker: circuit breaker for stripe_gateway opened due to failure rate 85% > 50%"
+    - timestamp: "2026-10-09T14:20:12Z"
+      level: ERROR
+      service: billing-service
+      message: "rejected payment request: circuit breaker open; returning fallback 503 Service Unavailable"
+  topology:
+    service: billing-service
+    upstream:
+      - checkout-worker
+      - subscription-scheduler
+    downstream:
+      - stripe-api.external
+      - postgres-primary
+  runbooks:
+    - title: "Downstream Payment Gateway Degradation SOP"
+      service: billing-service
+      content: "When external gateway trips circuit breaker: 1) Verify Stripe status dashboard. 2) Toggle feature flag enable_mock_fallback or enable_secondary_processor. 3) Pause non-critical subscription runs."
+  similar_incidents:
+    - title: "INC-410: Stripe EU webhook outage"
+      resolution: "Activated secondary gateway fallback processor via feature flag"
+      similarity: 0.88
+
+alert:
+  title: "Billing Service Stripe Circuit Breaker Open"
+  description: "Downstream Stripe API call latency exceeded 30s; circuit breaker tripped to OPEN state"
+  fingerprint: "circuit-breaker-stripe-billing"
+  labels:
+    alertname: DownstreamCircuitBreakerOpen
+    service: billing-service
+    severity: critical
+  annotations:
+    summary: "Circuit breaker opened after consecutive 30s timeouts contacting external payment gateway"
+
+ground_truth:
+  expected_root_causes:
+    - "circuit breaker"
+    - "Stripe"
+    - "downstream"
+    - "gateway timeout"
+  forbidden_root_causes:
+    - "bad deployment"
+    - "Postgres lock deadlock"
+  min_confidence: 0.85
+  required_evidence:
+    - "circuit breaker"
+    - "timed out after 30000ms"
+    - "stripe"
+  required_tools:
+    - "query_metrics"
+    - "log_search"
+    - "service_topology"
+  expected_remediation: "toggle_feature_flag"
+  max_steps: 6
+  max_tokens: 8000

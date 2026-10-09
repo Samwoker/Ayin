@@ -1,0 +1,100 @@
+id: bad-deployment-oom
+name: Order Service CrashLoopBackOff & Container OOMKilled
+description: Memory leak in newly deployed container image triggering cgroup OOM kills and restart thrashing
+service: order-service
+severity: sev2
+source: alertmanager
+environment:
+  deploys:
+    - version: v3.8.1
+      commit: 3e7c80b
+      author: eve@example.com
+      message: "feat(cache): retain order validation schemas in local memory map"
+      timestamp: "2026-10-09T11:45:00Z"
+      status: deployed
+    - version: v3.8.0
+      commit: 5a2b10f
+      author: frank@example.com
+      message: "release: v3.8.0 stable release"
+      timestamp: "2026-10-05T16:00:00Z"
+      status: deployed
+  metrics:
+    container_memory_working_set_bytes:
+      unit: bytes
+      values:
+        - timestamp: "2026-10-09T11:40:00Z"
+          value: 184549376
+        - timestamp: "2026-10-09T11:55:00Z"
+          value: 419430400
+        - timestamp: "2026-10-09T12:05:00Z"
+          value: 536870912
+    kube_pod_container_status_restarts_total:
+      unit: count
+      values:
+        - timestamp: "2026-10-09T11:40:00Z"
+          value: 0
+        - timestamp: "2026-10-09T12:05:00Z"
+          value: 14
+  logs:
+    - timestamp: "2026-10-09T11:58:30Z"
+      level: WARN
+      service: order-service
+      message: "heap memory usage 92% of limit (482MB / 512MB)"
+    - timestamp: "2026-10-09T12:04:12Z"
+      level: ERROR
+      service: order-service
+      message: "Kubelet: container order-service exceeded memory limit (536870912 bytes); terminated with signal SIGKILL (exit code 137, OOMKilled)"
+    - timestamp: "2026-10-09T12:05:01Z"
+      level: ERROR
+      service: order-service
+      message: "Pod order-service-7f99b entered CrashLoopBackOff: back-off 40s restarting failed container"
+  topology:
+    service: order-service
+    upstream:
+      - api-gateway
+      - mobile-bff
+    downstream:
+      - postgres-primary
+      - redis-cache
+  runbooks:
+    - title: "Kubernetes Pod OOMKilled & CrashLoop SOP"
+      service: order-service
+      content: "When pod exits with code 137 (OOMKilled): 1) Check recent deployment changelog. 2) Rollback to previous container image. 3) If legitimate load increase, double memory limits."
+  similar_incidents:
+    - title: "INC-652: Order service OOM crashloop post release"
+      resolution: "Rolled back release to previous stable image tag"
+      similarity: 0.94
+
+alert:
+  title: "Order Service Pod CrashLoopBackOff"
+  description: "Pod order-service restarted 14 times in 15 minutes due to OOMKilled (exit code 137)"
+  fingerprint: "k8s-pod-oom-order-service"
+  labels:
+    alertname: KubePodCrashLooping
+    service: order-service
+    severity: warning
+  annotations:
+    summary: "Container killed by cgroup out-of-memory killer after hitting 512MB limit"
+
+ground_truth:
+  expected_root_causes:
+    - "OOMKilled"
+    - "memory leak"
+    - "v3.8.1"
+    - "local memory map"
+    - "exit code 137"
+  forbidden_root_causes:
+    - "CPU throttling"
+    - "DNS failure"
+  min_confidence: 0.85
+  required_evidence:
+    - "OOMKilled"
+    - "exit code 137"
+    - "v3.8.1"
+  required_tools:
+    - "recent_deploys"
+    - "log_search"
+    - "query_metrics"
+  expected_remediation: "rollback_deploy"
+  max_steps: 6
+  max_tokens: 8000

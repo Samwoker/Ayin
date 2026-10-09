@@ -1,0 +1,102 @@
+id: rabbitmq-backlog
+name: RabbitMQ Consumer Backlog & Worker Starvation
+description: Worker thread deadlock and prefetch saturation causing unacknowledged message buildup
+service: checkout-worker
+severity: sev1
+source: alertmanager
+environment:
+  deploys:
+    - version: v2.14.0
+      commit: f9e821a
+      author: alice@example.com
+      message: "perf(queue): increase rabbitmq prefetch count from 10 to 1000 for high throughput"
+      timestamp: "2026-10-09T14:32:00Z"
+      status: deployed
+    - version: v2.13.9
+      commit: c4b192e
+      author: bob@example.com
+      message: "fix(metrics): add consumer latency histogram tags"
+      timestamp: "2026-10-08T10:15:00Z"
+      status: deployed
+  metrics:
+    rabbitmq_queue_messages_ready:
+      unit: count
+      values:
+        - timestamp: "2026-10-09T14:30:00Z"
+          value: 120
+        - timestamp: "2026-10-09T14:35:00Z"
+          value: 4800
+        - timestamp: "2026-10-09T14:40:00Z"
+          value: 28400
+        - timestamp: "2026-10-09T14:45:00Z"
+          value: 58200
+    rabbitmq_consumer_utilization:
+      unit: percent
+      values:
+        - timestamp: "2026-10-09T14:30:00Z"
+          value: 94.2
+        - timestamp: "2026-10-09T14:45:00Z"
+          value: 12.8
+  logs:
+    - timestamp: "2026-10-09T14:34:12Z"
+      level: WARN
+      service: checkout-worker
+      message: "consumer channel buffer 90% full; unacked messages count=980"
+    - timestamp: "2026-10-09T14:36:45Z"
+      level: ERROR
+      service: checkout-worker
+      message: "database transaction lock deadlock on orders table: context deadline exceeded after 15000ms"
+    - timestamp: "2026-10-09T14:39:10Z"
+      level: ERROR
+      service: checkout-worker
+      message: "heartbeat timeout: AMQP broker closed connection due to missed client heartbeat"
+  topology:
+    service: checkout-worker
+    upstream:
+      - rabbitmq-broker
+      - order-ingress-api
+    downstream:
+      - postgres-primary
+      - payment-api
+  runbooks:
+    - title: "RabbitMQ Queue Backlog & Worker Saturation SOP"
+      service: checkout-worker
+      content: "When rabbitmq_queue_messages_ready exceeds 5000: 1) Rollback recent prefetch changes. 2) Scale workers to drain queue. 3) Restart hung consumers."
+  similar_incidents:
+    - title: "INC-1092: Checkout worker prefetch memory exhaustion"
+      resolution: "Reverted prefetch count change and scaled replica pods to 8"
+      similarity: 0.89
+
+alert:
+  title: "RabbitMQ Consumer Lag Critical"
+  description: "Queue orders.checkout has 58,200 unacknowledged messages with consumer throughput degraded"
+  fingerprint: "amqp-checkout-backlog-sev1"
+  labels:
+    alertname: RabbitMQConsumerLag
+    service: checkout-worker
+    severity: critical
+  annotations:
+    summary: "Consumer queue backlog exceeded Sev1 threshold (>50,000 ready messages)"
+
+ground_truth:
+  expected_root_causes:
+    - "prefetch"
+    - "v2.14.0"
+    - "buffer saturation"
+    - "unacknowledged message"
+  forbidden_root_causes:
+    - "DDoS attack"
+    - "AWS hardware failure"
+    - "disk space full"
+  min_confidence: 0.85
+  required_evidence:
+    - "v2.14.0"
+    - "58,200"
+    - "deadlock"
+  required_tools:
+    - "recent_deploys"
+    - "query_metrics"
+    - "log_search"
+  expected_remediation: "rollback_deploy"
+  max_steps: 6
+  max_tokens: 8000

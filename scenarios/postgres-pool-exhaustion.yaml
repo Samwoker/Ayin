@@ -1,0 +1,101 @@
+id: postgres-pool-exhaustion
+name: PostgreSQL Connection Pool Saturation
+description: Leaked idle in transaction queries causing connection pool exhaustion and API client rejections
+service: payment-api
+severity: sev1
+source: grafana
+environment:
+  deploys:
+    - version: v1.19.2
+      commit: a1c841f
+      author: charlie@example.com
+      message: "feat(reporting): add synchronous reconciliation batch audit query"
+      timestamp: "2026-10-09T13:10:00Z"
+      status: deployed
+    - version: v1.19.1
+      commit: 89df201
+      author: dave@example.com
+      message: "chore: update dependencies"
+      timestamp: "2026-10-07T09:00:00Z"
+      status: deployed
+  metrics:
+    pg_stat_activity_active_connections:
+      unit: count
+      values:
+        - timestamp: "2026-10-09T13:00:00Z"
+          value: 18
+        - timestamp: "2026-10-09T13:15:00Z"
+          value: 65
+        - timestamp: "2026-10-09T13:25:00Z"
+          value: 99
+        - timestamp: "2026-10-09T13:30:00Z"
+          value: 100
+    payment_api_http_500_rate:
+      unit: per_second
+      values:
+        - timestamp: "2026-10-09T13:00:00Z"
+          value: 0.02
+        - timestamp: "2026-10-09T13:30:00Z"
+          value: 48.6
+  logs:
+    - timestamp: "2026-10-09T13:20:11Z"
+      level: WARN
+      service: payment-api
+      message: "connection checkout latency from pool > 2500ms; available slots: 4"
+    - timestamp: "2026-10-09T13:25:40Z"
+      level: ERROR
+      service: payment-api
+      message: "pq: remaining connection slots are reserved for non-replication superuser connections (max_connections=100)"
+    - timestamp: "2026-10-09T13:28:15Z"
+      level: ERROR
+      service: payment-api
+      message: "database pool exhausted: unable to acquire connection within 5000ms timeout for transaction /charge"
+  topology:
+    service: payment-api
+    upstream:
+      - checkout-worker
+      - web-gateway
+    downstream:
+      - postgres-primary
+      - stripe-gateway
+  runbooks:
+    - title: "PostgreSQL Connection Pool Saturation SOP"
+      service: payment-api
+      content: "When max_connections reached: 1) Terminate idle in transaction backends. 2) Restart payment-api pods. 3) Scale PgBouncer pool limits."
+  similar_incidents:
+    - title: "INC-874: Payment API DB pool deadlock"
+      resolution: "Killed long-running idle backends and deployed hotfix closing query cursors"
+      similarity: 0.91
+
+alert:
+  title: "Payment API Database Pool Exhaustion"
+  description: "Postgres active connections reached 100% capacity; HTTP 500 rate spiked to 48 req/s"
+  fingerprint: "pg-pool-exhausted-payment-api"
+  labels:
+    alertname: PostgresConnectionPoolExhausted
+    service: payment-api
+    severity: critical
+  annotations:
+    summary: "All 100 postgres client slots saturated; requests failing with connection acquisition timeouts"
+
+ground_truth:
+  expected_root_causes:
+    - "connection pool"
+    - "max_connections"
+    - "idle in transaction"
+    - "reconciliation batch"
+  forbidden_root_causes:
+    - "Redis out of memory"
+    - "Kubernetes node eviction"
+  min_confidence: 0.85
+  required_evidence:
+    - "max_connections=100"
+    - "remaining connection slots are reserved"
+    - "v1.19.2"
+  required_tools:
+    - "query_metrics"
+    - "log_search"
+    - "recent_deploys"
+  expected_remediation: "restart_service"
+  max_steps: 6
+  max_tokens: 8000
