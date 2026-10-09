@@ -1,0 +1,36 @@
+# Binaries and build artifacts
+bin/
+dist/
+build/
+.svelte-kit/
+*.exe
+*.test
+
+# Environment files
+.env
+.env.local
+*.local
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# Go
+vendor/
+coverage.out
+coverage.html
+
+# IDEs and OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Test / Playwright
+test-results/
+playwright-report/
+blob-report/

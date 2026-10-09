@@ -1,0 +1,25 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+
+linters-settings:
+  govet:
+    enable-all: false
+  errcheck:
+    check-blank: false
+
+issues:
+  exclude-dirs:
+    - vendor
+    - internal/store/db
