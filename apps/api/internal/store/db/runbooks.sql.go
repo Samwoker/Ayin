@@ -208,6 +208,48 @@ func (q *Queries) ListRunbooks(ctx context.Context, orgID pgtype.UUID) ([]Runboo
 	return items, nil
 }
 
+const searchRunbooksByText = `-- name: SearchRunbooksByText :many
+SELECT id, org_id, title, description, content_markdown, created_at, updated_at FROM runbooks
+WHERE org_id = $1
+  AND (title ILIKE '%' || $2 || '%' OR description ILIKE '%' || $2 || '%' OR content_markdown ILIKE '%' || $2 || '%')
+ORDER BY updated_at DESC
+LIMIT $3
+`
+
+type SearchRunbooksByTextParams struct {
+	OrgID   pgtype.UUID `json:"org_id"`
+	Column2 pgtype.Text `json:"column_2"`
+	Limit   int32       `json:"limit"`
+}
+
+func (q *Queries) SearchRunbooksByText(ctx context.Context, arg SearchRunbooksByTextParams) ([]Runbook, error) {
+	rows, err := q.db.Query(ctx, searchRunbooksByText, arg.OrgID, arg.Column2, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Runbook
+	for rows.Next() {
+		var i Runbook
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.Title,
+			&i.Description,
+			&i.ContentMarkdown,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchSimilarRunbookChunks = `-- name: SearchSimilarRunbookChunks :many
 SELECT c.id, c.org_id, c.runbook_id, c.chunk_index, c.chunk_text, c.embedding, c.created_at, r.title as runbook_title, 1 - (c.embedding <=> $2) as similarity
 FROM runbook_chunks c

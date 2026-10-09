@@ -43,3 +43,11 @@ JOIN runbooks r ON r.id = c.runbook_id
 WHERE c.org_id = $1
 ORDER BY c.embedding <=> $2
 LIMIT $3;
+
+-- name: SearchRunbooksByText :many
+SELECT * FROM runbooks
+WHERE org_id = $1
+  AND (title ILIKE '%' || $2 || '%' OR description ILIKE '%' || $2 || '%' OR content_markdown ILIKE '%' || $2 || '%')
+ORDER BY updated_at DESC
+LIMIT $3;
+

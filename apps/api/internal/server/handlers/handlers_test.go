@@ -14,6 +14,7 @@ import (
 	"github.com/seraph/triage/apps/api/internal/auth"
 	"github.com/seraph/triage/apps/api/internal/server/middleware"
 	"github.com/seraph/triage/apps/api/internal/server/sse"
+	"github.com/seraph/triage/apps/api/internal/tools"
 )
 
 func withURLParam(r *http.Request, key, val string) *http.Request {
@@ -421,4 +422,73 @@ func TestStreamRunActiveConnection(t *testing.T) {
 	if !bytes.Contains(rec.Body.Bytes(), []byte("event: step_completed")) {
 		t.Errorf("expected broadcasted step_completed event, got: %s", body)
 	}
+}
+
+func TestToolsHandlerValidationAndExecution(t *testing.T) {
+	registry := tools.NewToolRegistry(tools.NewAllowAllPolicyProvider(), 5*time.Second)
+	_ = registry.Register(tools.NewRecentDeploysTool(nil))
+	_ = registry.Register(tools.NewServiceTopologyTool(nil))
+
+	handler := NewToolsHandler(registry)
+
+	t.Run("ListTools without auth", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
+		rec := httptest.NewRecorder()
+		handler.ListTools(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("expected 401, got %d", rec.Code)
+		}
+	})
+
+	t.Run("ListTools with auth returns registered tools", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
+		req = req.WithContext(middleware.SetTenantContext(req.Context(), mockTenantContext()))
+		rec := httptest.NewRecorder()
+		handler.ListTools(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		if !bytes.Contains(rec.Body.Bytes(), []byte("recent_deploys")) {
+			t.Errorf("expected recent_deploys in list, got: %s", rec.Body.String())
+		}
+	})
+
+	t.Run("ExecuteTool without auth", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tools/recent_deploys/execute", bytes.NewReader([]byte(`{"service":"checkout-worker"}`)))
+		req = withURLParam(req, "name", "recent_deploys")
+		rec := httptest.NewRecorder()
+		handler.ExecuteTool(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("expected 401, got %d", rec.Code)
+		}
+	})
+
+	t.Run("ExecuteTool with valid request", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tools/recent_deploys/execute", bytes.NewReader([]byte(`{"service":"checkout-worker"}`)))
+		req = req.WithContext(middleware.SetTenantContext(req.Context(), mockTenantContext()))
+		req = withURLParam(req, "name", "recent_deploys")
+		rec := httptest.NewRecorder()
+		handler.ExecuteTool(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		if !bytes.Contains(rec.Body.Bytes(), []byte("checkout-worker")) {
+			t.Errorf("expected checkout-worker in result: %s", rec.Body.String())
+		}
+	})
+
+	t.Run("ExecuteTool with missing tool name", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tools//execute", nil)
+		req = req.WithContext(middleware.SetTenantContext(req.Context(), mockTenantContext()))
+		rec := httptest.NewRecorder()
+		handler.ExecuteTool(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", rec.Code)
+		}
+	})
 }

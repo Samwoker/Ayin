@@ -203,3 +203,39 @@ export interface WebhookIngestResponse {
 	incident_ids?: string[];
 	message?: string;
 }
+
+// Phase 5: Investigation Tools Types
+export interface ToolPropertyDoc {
+	type: string;
+	description?: string;
+	enum?: string[];
+	format?: string;
+	default?: unknown;
+}
+
+export interface ToolSchema {
+	type: string;
+	properties: Record<string, ToolPropertyDoc>;
+	required?: string[];
+	description?: string;
+}
+
+export interface ToolInfo {
+	name: string;
+	description: string;
+	schema: ToolSchema;
+}
+
+export interface ToolListResponse {
+	tools: ToolInfo[];
+}
+
+export interface ToolExecutionResult {
+	tool: string;
+	success: boolean;
+	data?: Record<string, unknown>;
+	error?: string;
+	latency_ms: number;
+	metadata?: Record<string, unknown>;
+}
+

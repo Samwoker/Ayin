@@ -31,3 +31,12 @@ WHERE org_id = $1 AND service = $2 AND status IN ('open', 'investigating') AND o
 ORDER BY opened_at DESC
 LIMIT 1;
 
+-- name: SearchHistoricalIncidents :many
+SELECT * FROM incidents
+WHERE org_id = $1
+  AND (sqlc.narg('service')::text IS NULL OR service = sqlc.narg('service'))
+  AND (sqlc.narg('exclude_id')::uuid IS NULL OR id != sqlc.narg('exclude_id'))
+  AND (sqlc.narg('query')::text IS NULL OR title ILIKE '%' || sqlc.narg('query') || '%')
+ORDER BY opened_at DESC
+LIMIT $2;
+

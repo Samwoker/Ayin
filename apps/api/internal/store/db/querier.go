@@ -79,6 +79,8 @@ type Querier interface {
 	ListUsers(ctx context.Context) ([]User, error)
 	RecordUsage(ctx context.Context, arg RecordUsageParams) (UsageLedger, error)
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (ApiKey, error)
+	SearchHistoricalIncidents(ctx context.Context, arg SearchHistoricalIncidentsParams) ([]Incident, error)
+	SearchRunbooksByText(ctx context.Context, arg SearchRunbooksByTextParams) ([]Runbook, error)
 	SearchSimilarRunbookChunks(ctx context.Context, arg SearchSimilarRunbookChunksParams) ([]SearchSimilarRunbookChunksRow, error)
 	UpdateIncidentStatus(ctx context.Context, arg UpdateIncidentStatusParams) (Incident, error)
 	UpdateMembershipRole(ctx context.Context, arg UpdateMembershipRoleParams) (Membership, error)

@@ -668,6 +668,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/tools:
+    get:
+      summary: List all investigation tools available to active organization
+      operationId: listTools
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: List of available investigation tools
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolListResponse'
+
+  /api/v1/tools/{name}/execute:
+    post:
+      summary: Execute an investigation tool on-demand within tenant boundary
+      operationId: executeTool
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: Tool name (e.g. log_search, recent_deploys, service_topology, query_metrics, search_runbooks, similar_incidents)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: Tool input parameters adhering to the tool JSON schema
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Tool executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolExecutionResult'
+        '400':
+          description: Invalid tool input or execution failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolExecutionResult'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1085,3 +1136,48 @@ components:
             format: uuid
         message:
           type: string
+
+    ToolInfo:
+      type: object
+      required: [name, description, schema]
+      properties:
+        name:
+          type: string
+          example: "log_search"
+        description:
+          type: string
+          example: "Searches log streams for a target service over an optional time window and regex pattern."
+        schema:
+          type: object
+          additionalProperties: true
+
+    ToolListResponse:
+      type: object
+      required: [tools]
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolInfo'
+
+    ToolExecutionResult:
+      type: object
+      required: [tool, success, latency_ms]
+      properties:
+        tool:
+          type: string
+          example: "recent_deploys"
+        success:
+          bool: true
+          type: boolean
+        data:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+        latency_ms:
+          type: integer
+          example: 42
+        metadata:
+          type: object
+          additionalProperties: true

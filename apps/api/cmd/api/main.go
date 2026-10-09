@@ -19,6 +19,7 @@ import (
 	"github.com/seraph/triage/apps/api/internal/server/sse"
 	"github.com/seraph/triage/apps/api/internal/store"
 	"github.com/seraph/triage/apps/api/internal/telemetry"
+	"github.com/seraph/triage/apps/api/internal/tools"
 )
 
 func main() {
@@ -75,7 +76,17 @@ func main() {
 		queue = ingest.NewMemoryQueue(100)
 	}
 
-	srv := server.NewServer(cfg, logger, health, st, jwtManager, rateLimiter, broker, queue)
+	// Tool registry with standard diagnostic tools
+	toolsPolicy := tools.NewAllowlistPolicyProvider()
+	toolsRegistry := tools.NewToolRegistry(toolsPolicy, 15*time.Second)
+	_ = toolsRegistry.Register(tools.NewLogSearchTool(ingest.NewFileLogAdapter("logs")))
+	_ = toolsRegistry.Register(tools.NewRecentDeploysTool(nil))
+	_ = toolsRegistry.Register(tools.NewServiceTopologyTool(nil))
+	_ = toolsRegistry.Register(tools.NewQueryMetricsTool(nil))
+	_ = toolsRegistry.Register(tools.NewSearchRunbooksTool(st))
+	_ = toolsRegistry.Register(tools.NewSimilarIncidentsTool(st))
+
+	srv := server.NewServer(cfg, logger, health, st, jwtManager, rateLimiter, broker, queue, toolsRegistry)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

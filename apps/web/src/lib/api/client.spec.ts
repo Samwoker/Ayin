@@ -213,5 +213,77 @@ describe('ApiClient', () => {
 		expect(result.status).toBe('success');
 		expect(result.incidents_created).toBe(1);
 	});
+
+	it('fetches list of available investigation tools', async () => {
+		const mockTools = {
+			tools: [
+				{
+					name: 'log_search',
+					description: 'Search logs',
+					schema: { type: 'object', properties: {} }
+				},
+				{
+					name: 'recent_deploys',
+					description: 'Recent deploys',
+					schema: { type: 'object', properties: {} }
+				}
+			]
+		};
+
+		const mockFetch = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => mockTools
+		} as Response);
+
+		const client = new ApiClient('http://test-host:8080', mockFetch);
+		const result = await client.listTools('jwt_token_123');
+
+		expect(mockFetch).toHaveBeenCalledWith(
+			'http://test-host:8080/api/v1/tools',
+			expect.objectContaining({
+				headers: expect.objectContaining({
+					Authorization: 'Bearer jwt_token_123'
+				})
+			})
+		);
+		expect(result.tools).toHaveLength(2);
+		expect(result.tools[0].name).toBe('log_search');
+	});
+
+	it('executes tool on-demand and returns structured result', async () => {
+		const mockResult = {
+			tool: 'service_topology',
+			success: true,
+			data: { target_service: 'checkout-worker', primary: { tier: 'tier-1' } },
+			latency_ms: 12
+		};
+
+		const mockFetch = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => mockResult
+		} as Response);
+
+		const client = new ApiClient('http://test-host:8080', mockFetch);
+		const result = await client.executeTool(
+			'service_topology',
+			{ service: 'checkout-worker', depth: 1 },
+			'jwt_token_123'
+		);
+
+		expect(mockFetch).toHaveBeenCalledWith(
+			'http://test-host:8080/api/v1/tools/service_topology/execute',
+			expect.objectContaining({
+				method: 'POST',
+				headers: expect.objectContaining({
+					'Content-Type': 'application/json',
+					Authorization: 'Bearer jwt_token_123'
+				}),
+				body: JSON.stringify({ service: 'checkout-worker', depth: 1 })
+			})
+		);
+		expect(result.success).toBe(true);
+		expect(result.tool).toBe('service_topology');
+	});
 });
+
 

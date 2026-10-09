@@ -19,6 +19,7 @@ import (
 	"github.com/seraph/triage/apps/api/internal/server/middleware"
 	"github.com/seraph/triage/apps/api/internal/server/sse"
 	"github.com/seraph/triage/apps/api/internal/store"
+	"github.com/seraph/triage/apps/api/internal/tools"
 )
 
 // Server represents the HTTP server for triage.
@@ -40,6 +41,7 @@ func NewServer(
 	rateLimiter *middleware.RateLimiter,
 	broker *sse.Broker,
 	queue ingest.Queue,
+	toolsRegistry *tools.ToolRegistry,
 ) *Server {
 	r := chi.NewRouter()
 
@@ -55,6 +57,15 @@ func NewServer(
 	}
 	if queue == nil {
 		queue = ingest.NewMemoryQueue(100)
+	}
+	if toolsRegistry == nil {
+		toolsRegistry = tools.NewToolRegistry(tools.NewAllowAllPolicyProvider(), 15*time.Second)
+		_ = toolsRegistry.Register(tools.NewLogSearchTool(ingest.NewFileLogAdapter("logs")))
+		_ = toolsRegistry.Register(tools.NewRecentDeploysTool(nil))
+		_ = toolsRegistry.Register(tools.NewServiceTopologyTool(nil))
+		_ = toolsRegistry.Register(tools.NewQueryMetricsTool(nil))
+		_ = toolsRegistry.Register(tools.NewSearchRunbooksTool(st))
+		_ = toolsRegistry.Register(tools.NewSimilarIncidentsTool(st))
 	}
 
 	authenticator := middleware.NewAuthenticator(jwtManager, st)
@@ -131,6 +142,11 @@ func NewServer(
 				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/runbooks", runbookHandler.CreateRunbook)
 				r.With(middleware.RequireRole(auth.RoleResponder)).Put("/runbooks/{id}", runbookHandler.UpdateRunbook)
 				r.With(middleware.RequireRole(auth.RoleAdmin)).Delete("/runbooks/{id}", runbookHandler.DeleteRunbook)
+
+				// Investigation Tools Discovery & On-Demand Execution
+				toolsHandler := handlers.NewToolsHandler(toolsRegistry)
+				r.Get("/tools", toolsHandler.ListTools)
+				r.With(middleware.RequireRole(auth.RoleResponder)).Post("/tools/{name}/execute", toolsHandler.ExecuteTool)
 			})
 		}
 	})

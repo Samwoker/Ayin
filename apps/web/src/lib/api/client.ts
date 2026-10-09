@@ -19,7 +19,9 @@ import type {
 	RunDetailResponse,
 	Runbook,
 	CreateRunbookRequest,
-	WebhookIngestResponse
+	WebhookIngestResponse,
+	ToolListResponse,
+	ToolExecutionResult
 } from './types';
 
 export class ApiClient {
@@ -311,6 +313,28 @@ export class ApiClient {
 				body: JSON.stringify(payload)
 			},
 			options?.token
+		);
+	}
+
+	/**
+	 * Phase 5: List investigation tools available to tenant
+	 */
+	async listTools(token?: string): Promise<ToolListResponse> {
+		return this.request<ToolListResponse>('/api/v1/tools', undefined, token);
+	}
+
+	/**
+	 * Phase 5: Execute an investigation tool on-demand
+	 */
+	async executeTool(name: string, params: Record<string, unknown>, token?: string): Promise<ToolExecutionResult> {
+		return this.request<ToolExecutionResult>(
+			`/api/v1/tools/${name}/execute`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(params)
+			},
+			token
 		);
 	}
 }

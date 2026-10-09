@@ -184,6 +184,61 @@ func (q *Queries) ListIncidents(ctx context.Context, arg ListIncidentsParams) ([
 	return items, nil
 }
 
+const searchHistoricalIncidents = `-- name: SearchHistoricalIncidents :many
+SELECT id, org_id, title, service, severity, status, opened_at, resolved_at, created_at, updated_at FROM incidents
+WHERE org_id = $1
+  AND ($3::text IS NULL OR service = $3)
+  AND ($4::uuid IS NULL OR id != $4)
+  AND ($5::text IS NULL OR title ILIKE '%' || $5 || '%')
+ORDER BY opened_at DESC
+LIMIT $2
+`
+
+type SearchHistoricalIncidentsParams struct {
+	OrgID     pgtype.UUID `json:"org_id"`
+	Limit     int32       `json:"limit"`
+	Service   pgtype.Text `json:"service"`
+	ExcludeID pgtype.UUID `json:"exclude_id"`
+	Query     pgtype.Text `json:"query"`
+}
+
+func (q *Queries) SearchHistoricalIncidents(ctx context.Context, arg SearchHistoricalIncidentsParams) ([]Incident, error) {
+	rows, err := q.db.Query(ctx, searchHistoricalIncidents,
+		arg.OrgID,
+		arg.Limit,
+		arg.Service,
+		arg.ExcludeID,
+		arg.Query,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Incident
+	for rows.Next() {
+		var i Incident
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.Title,
+			&i.Service,
+			&i.Severity,
+			&i.Status,
+			&i.OpenedAt,
+			&i.ResolvedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateIncidentStatus = `-- name: UpdateIncidentStatus :one
 UPDATE incidents
 SET status = $3, resolved_at = $4, updated_at = now()
