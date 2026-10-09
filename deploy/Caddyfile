@@ -1,0 +1,37 @@
+{
+    auto_https off
+    admin off
+}
+
+:80 {
+    encode zstd gzip
+
+    # Health probe
+    respond /caddy-healthz 200
+
+    # API and telemetry routing with unbuffered SSE streaming
+    @api path /api/* /healthz /readyz /metrics
+    handle @api {
+        reverse_proxy api:8080 {
+            flush_interval -1
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+        }
+    }
+
+    # Frontend SvelteKit application routing
+    handle {
+        reverse_proxy web:3000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+        }
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+}

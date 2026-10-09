@@ -133,6 +133,34 @@ services:
     networks:
       - triage-net
 
+  mcp:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    entrypoint: ["/app/mcp", "--transport=sse", "--addr=:8081"]
+    container_name: triage-mcp
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    networks:
+      - triage-net
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: triage-caddy
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - triage-net
+
 networks:
   triage-net:
     driver: bridge
@@ -141,3 +169,5 @@ volumes:
   postgres_data:
   redis_data:
   grafana_data:
+  caddy_data:
+  caddy_config:
