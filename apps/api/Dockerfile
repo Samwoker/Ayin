@@ -19,7 +19,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/api ./c
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/mcp ./cmd/mcp && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/triage ./cmd/triage && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/eval ./cmd/eval && \
-    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/simulate ./cmd/simulate
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/simulate ./cmd/simulate && \
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/seed ./cmd/seed
 
 # Production runtime stage
 FROM gcr.io/distroless/static-debian12:nonroot
@@ -32,6 +33,7 @@ COPY --from=builder /bin/mcp /app/mcp
 COPY --from=builder /bin/triage /app/triage
 COPY --from=builder /bin/eval /app/eval
 COPY --from=builder /bin/simulate /app/simulate
+COPY --from=builder /bin/seed /app/seed
 
 USER nonroot:nonroot
 

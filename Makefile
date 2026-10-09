@@ -1,22 +1,24 @@
 SHELL := /bin/bash
 export PATH := /usr/local/go/bin:$(HOME)/.nvm/versions/node/v24.19.0/bin:$(HOME)/go/bin:$(PATH)
 
-.PHONY: all dev test lint migrate gen eval simulate build clean help
+.PHONY: all dev test lint migrate gen eval simulate build deploy smoke-test clean help
 
 all: build test
 
 ## Help
 help:
 	@echo "Triage Monorepo Commands:"
-	@echo "  make dev       - Start local environment with docker-compose"
-	@echo "  make test      - Run all Go and Web test suites"
-	@echo "  make lint      - Run linters and typecheckers"
-	@echo "  make migrate   - Run database migrations (Phase 2+)"
-	@echo "  make gen       - Generate OpenAPI contracts, sqlc types, and SvelteKit types"
-	@echo "  make eval      - Run evaluation CLI benchmark"
-	@echo "  make simulate  - Trigger fault-injection scenario simulator"
-	@echo "  make build     - Build Go binaries and SvelteKit web application"
-	@echo "  make clean     - Clean build artifacts"
+	@echo "  make dev        - Start local environment with docker-compose"
+	@echo "  make test       - Run all Go and Web test suites"
+	@echo "  make lint       - Run linters and typecheckers"
+	@echo "  make migrate    - Run database migrations (Phase 2+)"
+	@echo "  make gen        - Generate OpenAPI contracts, sqlc types, and SvelteKit types"
+	@echo "  make eval       - Run evaluation CLI benchmark"
+	@echo "  make simulate   - Trigger fault-injection scenario simulator"
+	@echo "  make build      - Build Go binaries and SvelteKit web application"
+	@echo "  make deploy     - Deploy stack with zero-downtime rolling update"
+	@echo "  make smoke-test - Run automated post-deploy smoke tests"
+	@echo "  make clean      - Clean build artifacts"
 
 ## Development
 dev:
@@ -86,6 +88,15 @@ build-api:
 build-web:
 	@echo "==> Building SvelteKit production bundle..."
 	cd apps/web && npm run build
+
+## Continuous Deployment
+deploy:
+	@echo "==> Deploying stack with zero downtime..."
+	./deploy/scripts/deploy.sh $${IMAGE_TAG:-latest}
+
+smoke-test:
+	@echo "==> Running deployment smoke tests..."
+	./deploy/scripts/smoke-test.sh $${TARGET_URL:-http://localhost}
 
 ## Clean
 clean:
