@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { Radio, Zap, RefreshCw, Server, Activity, Sparkles, CreditCard, ShieldCheck } from '@lucide/svelte';
+	import { Radio, Zap, RefreshCw, Server, Activity, Sparkles, CreditCard, ShieldCheck, Eye, BookOpen } from '@lucide/svelte';
 
 	interface Props {
 		backendConnected: boolean;
@@ -13,6 +13,7 @@
 		onSimulate: () => void;
 		onRefresh: () => void;
 		onOpenPricing?: () => void;
+		onOpenDocs?: () => void;
 		isRefreshing: boolean;
 	}
 
@@ -26,21 +27,23 @@
 		onSimulate,
 		onRefresh,
 		onOpenPricing,
+		onOpenDocs,
 		isRefreshing = false
 	}: Props = $props();
 </script>
 
-<header class="border-b border-slate-800/80 bg-slate-950/75 backdrop-blur-md sticky top-0 z-40 px-6 py-3 flex flex-wrap items-center justify-between gap-4 transition-all">
+<header class="border-b border-white/[0.08] bg-[#090a0d]/85 backdrop-blur-md sticky top-0 z-40 px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 transition-all shadow-sm">
 	<!-- Left: Brand & Status -->
 	<div class="flex items-center space-x-3.5">
-		<div class="relative w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 via-red-600 to-rose-700 flex items-center justify-center font-mono font-bold text-white shadow-lg shadow-red-950/40 ring-1 ring-white/20">
-			<span>T</span>
+		<div class="relative w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-600 to-indigo-700 flex items-center justify-center font-mono font-bold text-white shadow-lg shadow-indigo-950/40 ring-1 ring-white/20">
+			<Eye class="w-5 h-5 text-white" />
 			<span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-950"></span>
 		</div>
 		<div>
 			<div class="flex items-center gap-2">
 				<h1 class="text-base font-bold tracking-tight text-white font-sans flex items-center gap-1.5">
-					<span>triage</span>
+					<span>Ayin</span>
+					<span class="text-xs font-normal text-slate-400 font-mono tracking-normal">/ ዓይን</span>
 				</h1>
 				<Badge variant="sev1" class="text-[10px] px-2 py-0 animate-none font-mono">
 					v0.1.0
@@ -50,7 +53,7 @@
 					Gemini 2.5
 				</span>
 			</div>
-			<p class="text-[11px] text-slate-400 font-sans">Autonomous Incident Response & HITL Remediation Engine</p>
+			<p class="text-[11px] text-slate-400 font-sans">Autonomous Incident Response & Observability Eye</p>
 		</div>
 	</div>
 
@@ -123,6 +126,18 @@
 				<span>Standalone / Mock</span>
 			{/if}
 		</div>
+
+		<!-- Developer Integration Docs Action -->
+		<Button
+			variant="outline"
+			size="sm"
+			onclick={onOpenDocs}
+			class="border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 hover:text-white gap-1.5 shadow-sm active:scale-95 transition"
+			title="Open developer integration guides & webhook snippets"
+		>
+			<BookOpen class="w-3.5 h-3.5 text-indigo-400" />
+			<span>Docs</span>
+		</Button>
 
 		<!-- Action: Trigger Fault Simulation -->
 		<Button

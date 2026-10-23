@@ -7,37 +7,84 @@
 
 :root {
 	color-scheme: dark;
+	--canvas: #090a0d;
+	--surface-1: #0f1115;
+	--surface-2: #15181e;
+	--surface-3: #1c2027;
+	--hairline: rgba(255, 255, 255, 0.08);
+	--hairline-subtle: rgba(255, 255, 255, 0.04);
+	--accent-indigo: #6366f1;
+	--accent-emerald: #10b981;
+	--accent-rose: #f43f5e;
 }
 
 body {
-	background-color: #080c15;
-	color: #f1f5f9;
+	background-color: #090a0d;
+	color: #f3f4f6;
 	font-family: var(--font-sans);
+	letter-spacing: -0.011em;
+	-webkit-font-smoothing: antialiased;
 }
 
-/* Custom subtle scrollbar */
+/* Custom hairline scrollbar */
 ::-webkit-scrollbar {
-	width: 6px;
-	height: 6px;
+	width: 5px;
+	height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-	background: rgba(15, 23, 42, 0.5);
+	background: rgba(15, 17, 21, 0.8);
 }
 
 ::-webkit-scrollbar-thumb {
-	background: rgba(51, 65, 85, 0.6);
+	background: rgba(255, 255, 255, 0.12);
 	border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: rgba(100, 116, 139, 0.8);
+	background: rgba(255, 255, 255, 0.25);
 }
 
-/* Ambient subtle background grid utility */
+/* Linear-style engineering micro-grid */
 .bg-grid-pattern {
-	background-size: 32px 32px;
+	background-size: 24px 24px;
 	background-image: 
 		linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
 		linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+/* Radar pulse animation for active incident state */
+@keyframes radar-sweep {
+	0% {
+		transform: scale(0.95);
+		opacity: 0.8;
+	}
+	50% {
+		transform: scale(1.6);
+		opacity: 0;
+	}
+	100% {
+		transform: scale(0.95);
+		opacity: 0;
+	}
+}
+
+.animate-radar {
+	animation: radar-sweep 2.2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+/* Timeline trace connector */
+.timeline-spine {
+	position: absolute;
+	left: 19px;
+	top: 36px;
+	bottom: -16px;
+	width: 2px;
+	background: linear-gradient(to bottom, rgba(99, 102, 241, 0.4), rgba(255, 255, 255, 0.06));
+}
+
+/* High-contrast code block highlights */
+pre code {
+	font-family: var(--font-mono);
+	tab-size: 2;
 }

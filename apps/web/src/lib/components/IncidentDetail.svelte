@@ -140,14 +140,14 @@
 	}
 </script>
 
-<Card class="border-slate-800/80 bg-slate-900/40 backdrop-blur-sm overflow-hidden flex flex-col shadow-sm">
+<div class="rounded-xl border border-white/[0.08] bg-[#0d0f14]/90 backdrop-blur-md overflow-hidden flex flex-col shadow-lg shadow-black/40">
 	<!-- Incident Master Header -->
-	<div class="p-6 border-b border-slate-800/80 bg-slate-900/60 space-y-4">
+	<div class="p-5 border-b border-white/[0.06] bg-black/30 space-y-4">
 		<div class="flex items-start justify-between gap-4 flex-wrap">
 			<div class="space-y-2 max-w-2xl">
 				<div class="flex items-center gap-2.5 flex-wrap">
 					<!-- Severity Badge -->
-					<Badge variant={getSeverityBadgeVariant(incident.severity)} class="uppercase font-mono text-xs px-2.5 py-0.5">
+					<Badge variant={getSeverityBadgeVariant(incident.severity)} class="uppercase font-mono text-[10px] px-2.5 py-0.5">
 						{#if incident.severity === 'sev1'}
 							<Flame class="w-3 h-3 text-red-400 inline -ml-0.5 mr-0.5" />
 						{/if}
@@ -155,28 +155,28 @@
 					</Badge>
 
 					<!-- Service Tag -->
-					<span class="px-2.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-mono text-xs font-semibold flex items-center gap-1.5">
+					<span class="px-2.5 py-0.5 rounded-md bg-black/50 border border-white/10 text-slate-300 font-mono text-[11px] font-semibold flex items-center gap-1.5">
 						<Tag class="w-3 h-3 text-slate-400" />
 						<span>{incident.service}</span>
 					</span>
 
-					<span class="text-xs text-slate-500 font-mono">
+					<span class="text-[11px] text-slate-500 font-mono">
 						Incident #{incident.id.slice(0, 8)}
 					</span>
 				</div>
 
-				<h2 class="text-xl font-bold text-white tracking-tight leading-snug font-sans">
+				<h2 class="text-lg font-bold text-white tracking-tight leading-snug font-sans">
 					{incident.title}
 				</h2>
 			</div>
 
 			<!-- Status Selector Dropdown -->
 			<div class="flex items-center gap-2 font-mono text-xs">
-				<span class="text-slate-400">Status:</span>
+				<span class="text-slate-500">Status:</span>
 				<select
 					value={incident.status}
 					onchange={(e) => onStatusChange((e.target as HTMLSelectElement).value)}
-					class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 cursor-pointer capitalize shadow-sm transition"
+					class="bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer capitalize shadow-sm transition"
 				>
 					<option value="open">Open</option>
 					<option value="investigating">Investigating</option>
@@ -188,8 +188,8 @@
 
 		<!-- Navigation Tabs using shadcn Tabs -->
 		<Tabs bind:value={activeTab} class="w-full">
-			<TabsList class="w-full justify-start h-auto p-1 bg-slate-950/90 border-slate-800 gap-1.5 overflow-x-auto">
-				<TabsTrigger value="trace" class="gap-2 text-xs py-2 px-3.5">
+			<TabsList class="w-full justify-start h-auto p-1 bg-black/50 border border-white/[0.06] rounded-lg gap-1 overflow-x-auto">
+				<TabsTrigger value="trace" class="gap-2 text-xs py-1.5 px-3">
 					<Bot class="w-3.5 h-3.5" />
 					<span>Investigation Trace</span>
 					{#if steps.length > 0}
@@ -199,7 +199,7 @@
 					{/if}
 				</TabsTrigger>
 
-				<TabsTrigger value="hypotheses" class="gap-2 text-xs py-2 px-3.5">
+				<TabsTrigger value="hypotheses" class="gap-2 text-xs py-1.5 px-3">
 					<Sparkles class="w-3.5 h-3.5" />
 					<span>Ranked Hypotheses</span>
 					{#if hypotheses.length > 0}
@@ -209,7 +209,7 @@
 					{/if}
 				</TabsTrigger>
 
-				<TabsTrigger value="remediations" class="gap-2 text-xs py-2 px-3.5">
+				<TabsTrigger value="remediations" class="gap-2 text-xs py-1.5 px-3">
 					<ShieldCheck class="w-3.5 h-3.5" />
 					<span>Remediations & Approvals</span>
 					{#if remediations.length > 0}
@@ -219,7 +219,7 @@
 					{/if}
 				</TabsTrigger>
 
-				<TabsTrigger value="runbooks" class="gap-2 text-xs py-2 px-3.5">
+				<TabsTrigger value="runbooks" class="gap-2 text-xs py-1.5 px-3">
 					<BookOpen class="w-3.5 h-3.5" />
 					<span>Runbooks</span>
 				</TabsTrigger>
@@ -228,7 +228,7 @@
 	</div>
 
 	<!-- Tab Panels -->
-	<div class="p-6">
+	<div class="p-5">
 		{#if activeTab === 'trace'}
 			<InvestigationTrace
 				{run}
@@ -252,7 +252,7 @@
 			<RunbookViewer {runbooks} targetService={incident.service} />
 		{/if}
 	</div>
-</Card>
+</div>
 
 <!-- Modal Controls -->
 <ApprovalModal

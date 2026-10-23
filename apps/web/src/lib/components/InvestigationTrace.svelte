@@ -1,23 +1,23 @@
 <script lang="ts">
 	import type { Run, RunStep } from '../api/types';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { Badge } from '#lib/components/ui/badge/index.js';
-	import { Card } from '#lib/components/ui/card/index.js';
 	import {
 		Bot,
 		Terminal,
-		FileText,
-		CircleCheck,
-		Radio,
-		Activity,
 		Play,
-		Timer,
 		Coins,
 		DollarSign,
 		Layers,
 		ChevronDown,
 		ChevronUp,
-		Cpu
+		Cpu,
+		Clock,
+		CheckCircle2,
+		Radio,
+		Copy,
+		Check,
+		Search,
+		Filter
 	} from '@lucide/svelte';
 
 	interface Props {
@@ -37,89 +37,90 @@
 	}: Props = $props();
 
 	let expandedSteps = $state<Record<string, boolean>>({});
+	let copiedStepId = $state<string | null>(null);
+	let stepFilter = $state<'all' | 'tools' | 'plans'>('all');
 
 	function toggleStep(id: string) {
-		expandedSteps[id] = !expandedSteps[id];
+		expandedSteps[id] = !(expandedSteps[id] ?? true);
+	}
+
+	function copyPayload(stepId: string, text: string) {
+		navigator.clipboard.writeText(text);
+		copiedStepId = stepId;
+		setTimeout(() => {
+			if (copiedStepId === stepId) copiedStepId = null;
+		}, 2000);
 	}
 
 	function formatCost(cost: number | undefined): string {
 		if (cost === undefined || cost === null) return '$0.0000';
 		return `$${cost.toFixed(4)}`;
 	}
+
+	let filteredSteps = $derived(
+		steps.filter((s) => {
+			if (stepFilter === 'tools') return s.step_type === 'tool_call';
+			if (stepFilter === 'plans') return s.step_type === 'plan' || s.step_type === 'reasoning';
+			return true;
+		})
+	);
 </script>
 
 <div class="space-y-4">
 	<!-- Run Overview Header Bar -->
 	{#if run}
-		<Card class="p-4 border-slate-800/80 bg-slate-900/60 backdrop-blur-sm flex flex-wrap items-center justify-between gap-4 shadow-sm">
+		<div class="rounded-xl border border-white/[0.08] bg-[#0d0f14]/90 backdrop-blur-md p-4 flex flex-wrap items-center justify-between gap-4 shadow-md">
 			<div class="flex items-center gap-3">
-				<div class="w-9 h-9 rounded-xl bg-indigo-950/80 border border-indigo-700/60 flex items-center justify-center text-indigo-400 font-mono font-bold text-xs shadow-inner">
-					<Cpu class="w-5 h-5 text-indigo-400" />
+				<div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-mono font-bold text-xs shadow-inner">
+					<Cpu class="w-4 h-4 text-indigo-400" />
 				</div>
 				<div>
 					<div class="flex items-center gap-2">
-						<span class="text-xs font-mono text-slate-200 font-bold">
-							Run #{run.id.slice(0, 8)}
+						<span class="text-xs font-mono text-white font-bold">
+							Agent Run #{run.id.slice(0, 8)}
 						</span>
-						<!-- Run Status Badge -->
-						<Badge
-							variant={run.status === 'succeeded'
-								? 'default'
-								: run.status === 'running'
-									? 'sev3'
-									: 'warning'}
-							class="uppercase font-mono text-[10px]"
-						>
-							{#if run.status === 'running'}
-								<Activity class="w-3 h-3 text-sky-400 animate-spin mr-1" />
-							{/if}
+						<span class="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold uppercase {run.status === 'succeeded' ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300' : run.status === 'running' ? 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 animate-pulse' : 'bg-amber-500/15 border border-amber-500/30 text-amber-300'}">
 							{run.status}
-						</Badge>
+						</span>
 					</div>
-					<p class="text-[11px] text-slate-400 font-mono">
+					<p class="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+						<Clock class="w-3 h-3 text-slate-500" />
 						Started {new Date(run.started_at).toLocaleTimeString()}
 					</p>
 				</div>
 			</div>
 
-			<!-- Telemetry Badges (Tokens, Cost, Steps) -->
-			<div class="flex items-center gap-4 text-xs font-mono flex-wrap">
-				<div class="text-right flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800/80">
+			<!-- Telemetry Badges (Tokens, Cost, Steps, SSE) -->
+			<div class="flex items-center gap-2.5 text-xs font-mono flex-wrap">
+				<div class="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/[0.06]">
 					<Coins class="w-3.5 h-3.5 text-slate-400" />
-					<div>
-						<span class="text-[9px] text-slate-500 uppercase block leading-none">Tokens</span>
-						<span class="text-slate-200 font-semibold">{run.total_tokens?.toLocaleString() || '0'}</span>
-					</div>
+					<span class="text-slate-400 text-[10px]">Tokens:</span>
+					<span class="text-white font-bold">{run.total_tokens?.toLocaleString() || '0'}</span>
 				</div>
 
-				<div class="text-right flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800/80">
+				<div class="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/[0.06]">
 					<DollarSign class="w-3.5 h-3.5 text-emerald-400" />
-					<div>
-						<span class="text-[9px] text-slate-500 uppercase block leading-none">Cost</span>
-						<span class="text-emerald-400 font-semibold">{formatCost(run.total_cost_usd)}</span>
-					</div>
+					<span class="text-slate-400 text-[10px]">Cost:</span>
+					<span class="text-emerald-400 font-bold">{formatCost(run.total_cost_usd)}</span>
 				</div>
 
-				<div class="text-right flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800/80">
+				<div class="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/[0.06]">
 					<Layers class="w-3.5 h-3.5 text-indigo-400" />
-					<div>
-						<span class="text-[9px] text-slate-500 uppercase block leading-none">Steps</span>
-						<span class="text-white font-semibold">{steps.length}</span>
-					</div>
+					<span class="text-slate-400 text-[10px]">Steps:</span>
+					<span class="text-indigo-300 font-bold">{steps.length}</span>
 				</div>
 
 				<!-- Live Streaming SSE Indicator -->
-				<div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px]">
+				<div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/50 border border-white/[0.06] text-[11px]">
 					{#if isLiveStreaming}
 						<span class="relative flex h-2 w-2">
-							<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-							<span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+							<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+							<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
 						</span>
-						<Radio class="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-						<span class="text-indigo-400 font-medium">SSE Live</span>
+						<span class="text-emerald-400 font-medium">SSE Stream Active</span>
 					{:else}
-						<span class="w-2 h-2 rounded-full bg-slate-600 inline-block"></span>
-						<span class="text-slate-500">SSE Idle</span>
+						<span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+						<span class="text-slate-500">Stream Idle</span>
 					{/if}
 				</div>
 
@@ -127,120 +128,170 @@
 					size="sm"
 					onclick={onTriggerRun}
 					disabled={isTriggering}
-					class="bg-indigo-600 hover:bg-indigo-500 text-white gap-1.5 shadow-sm active:scale-95"
+					class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs h-8 px-3 gap-1.5 shadow-sm active:scale-95 transition"
 				>
-					<Play class="w-3.5 h-3.5" />
+					<Play class="w-3 h-3 fill-current" />
 					<span>{isTriggering ? 'Running...' : 'Re-investigate'}</span>
 				</Button>
 			</div>
-		</Card>
+		</div>
 	{:else}
-		<Card class="border-slate-800/80 bg-slate-900/40 p-8 text-center space-y-3 shadow-sm">
+		<div class="rounded-xl border border-dashed border-white/10 bg-[#0d0f14]/60 p-8 text-center space-y-3">
 			<Bot class="w-8 h-8 text-indigo-400 mx-auto" />
 			<p class="text-slate-400 text-xs font-mono">No autonomous investigation runs found for this incident</p>
 			<Button
 				onclick={onTriggerRun}
 				disabled={isTriggering}
-				class="bg-indigo-600 hover:bg-indigo-500 text-white gap-2 shadow-sm active:scale-95"
+				class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs h-8.5 px-4 gap-2 shadow-sm active:scale-95 transition"
 			>
-				<Play class="w-4 h-4" />
-				<span>{isTriggering ? 'Dispatching Agent...' : 'Launch Autonomous Investigation'}</span>
+				<Play class="w-3.5 h-3.5 fill-current" />
+				<span>Launch Autonomous Investigation</span>
 			</Button>
-		</Card>
+		</div>
 	{/if}
 
-	<!-- Timeline Step Trace -->
-	<div class="space-y-3">
-		{#each steps as step (step.id || step.step_number)}
-			{@const isExpanded = expandedSteps[step.id || String(step.step_number)] ?? true}
-			<Card class="border-slate-800/80 bg-slate-950/80 overflow-hidden transition-all duration-150 p-0 shadow-sm hover:border-slate-700/80">
-				<!-- Step Header -->
+	<!-- Trace Filter Bar -->
+	{#if steps.length > 0}
+		<div class="flex items-center justify-between text-xs font-mono px-1">
+			<div class="flex items-center gap-1.5">
+				<Filter class="w-3.5 h-3.5 text-slate-500" />
+				<span class="text-slate-500 text-[11px]">Filter Trace:</span>
+				<button
+					onclick={() => (stepFilter = 'all')}
+					class="px-2 py-0.5 rounded text-[11px] transition {stepFilter === 'all' ? 'bg-white/10 text-white font-bold' : 'text-slate-400 hover:text-white'}"
+				>
+					All ({steps.length})
+				</button>
+				<button
+					onclick={() => (stepFilter = 'tools')}
+					class="px-2 py-0.5 rounded text-[11px] transition {stepFilter === 'tools' ? 'bg-indigo-500/20 text-indigo-300 font-bold' : 'text-slate-400 hover:text-white'}"
+				>
+					Tools Only ({steps.filter((s) => s.step_type === 'tool_call').length})
+				</button>
+				<button
+					onclick={() => (stepFilter = 'plans')}
+					class="px-2 py-0.5 rounded text-[11px] transition {stepFilter === 'plans' ? 'bg-amber-500/20 text-amber-300 font-bold' : 'text-slate-400 hover:text-white'}"
+				>
+					Plans Only ({steps.filter((s) => s.step_type === 'plan').length})
+				</button>
+			</div>
+
+			<span class="text-[11px] text-slate-500">
+				Deterministic timeline • Read-only tools
+			</span>
+		</div>
+	{/if}
+
+	<!-- Timeline Step Trace (Threaded) -->
+	<div class="space-y-3 relative">
+		{#each filteredSteps as step, idx (step.id || step.step_number)}
+			{@const stepKey = step.id || String(step.step_number)}
+			{@const isExpanded = expandedSteps[stepKey] ?? true}
+			{@const isTool = step.step_type === 'tool_call'}
+
+			<div class="rounded-xl border border-white/[0.07] bg-[#0d0f14]/90 overflow-hidden shadow-sm transition-all hover:border-white/15">
+				<!-- Step Trigger Header -->
 				<button
 					type="button"
-					onclick={() => toggleStep(step.id || String(step.step_number))}
-					class="w-full px-4 py-3 bg-slate-900/60 hover:bg-slate-900/90 flex items-center justify-between text-left text-xs transition border-b border-slate-800/60 cursor-pointer"
+					onclick={() => toggleStep(stepKey)}
+					class="w-full text-left p-3.5 flex items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition"
 				>
 					<div class="flex items-center gap-3">
-						<!-- Step Number Circle -->
-						<div class="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-mono text-[11px] font-bold text-slate-300">
-							{step.step_number}
+						<!-- Step Number Badge -->
+						<div class="w-7 h-7 rounded-lg font-mono font-bold text-xs flex items-center justify-center {isTool ? 'bg-indigo-500/10 border border-indigo-500/30 text-indigo-300' : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'}">
+							{step.step_number || idx + 1}
 						</div>
 
-						<!-- Step Type Badge -->
-						{#if step.step_type === 'plan'}
-							<Badge variant="sev3" class="font-mono text-[10px] gap-1">
-								<FileText class="w-3 h-3 text-sky-400" />
-								<span>PLAN</span>
-							</Badge>
-							<span class="text-slate-200 font-medium font-sans">Investigation Strategy & Hypotheses Formulation</span>
-						{:else if step.step_type === 'tool_call'}
-							<Badge variant="secondary" class="bg-purple-950/80 border-purple-800/80 text-purple-300 font-mono text-[10px] gap-1">
-								<Terminal class="w-3 h-3 text-purple-400" />
-								<span>TOOL CALL</span>
-							</Badge>
-							<span class="font-mono text-purple-200 font-bold">{step.tool_name}</span>
-						{:else if step.step_type === 'conclusion'}
-							<Badge variant="default" class="font-mono text-[10px] gap-1">
-								<CircleCheck class="w-3 h-3 text-emerald-400" />
-								<span>CONCLUSION</span>
-							</Badge>
-							<span class="text-emerald-200 font-medium font-sans">Root-Cause Synthesis & Ranked Hypotheses</span>
-						{:else}
-							<Badge variant="outline" class="font-mono text-[10px]">
-								{step.step_type}
-							</Badge>
-						{/if}
+						<div>
+							<div class="flex items-center gap-2 flex-wrap">
+								<!-- Step Type -->
+								<span class="font-mono text-[10px] font-bold px-2 py-0.5 rounded uppercase {isTool ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'}">
+									{step.step_type === 'tool_call' ? 'Tool Call' : 'Plan / Strategy'}
+								</span>
+
+								<!-- Tool Name / Title -->
+								<span class="font-mono text-xs font-bold text-white">
+									{step.tool_name || 'Investigation Strategy & Hypotheses Formulation'}
+								</span>
+
+								<!-- Latency Badge -->
+								{#if step.latency_ms}
+									<span class="text-[10px] font-mono text-slate-400 bg-black/40 px-1.5 py-0.5 rounded border border-white/[0.05]">
+										{step.latency_ms}ms
+									</span>
+								{/if}
+							</div>
+						</div>
 					</div>
 
-					<!-- Latency & Toggle Arrow -->
-					<div class="flex items-center gap-3 font-mono text-[11px] text-slate-400">
-						{#if step.latency_ms}
-							<div class="bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-[10px] flex items-center gap-1">
-								<Timer class="w-3 h-3 text-slate-400" />
-								<span>{step.latency_ms}ms</span>
-							</div>
+					<!-- Chevron -->
+					<div class="text-slate-500 hover:text-slate-300">
+						{#if isExpanded}
+							<ChevronUp class="w-4 h-4" />
+						{:else}
+							<ChevronDown class="w-4 h-4" />
 						{/if}
-						<span class="text-slate-500">
-							{#if isExpanded}
-								<ChevronUp class="w-3.5 h-3.5" />
-							{:else}
-								<ChevronDown class="w-3.5 h-3.5" />
-							{/if}
-						</span>
 					</div>
 				</button>
 
-				<!-- Step Body Content -->
+				<!-- Expanded Content -->
 				{#if isExpanded}
-					<div class="p-4 space-y-3 text-xs font-mono">
-						{#if step.step_type === 'plan' || step.step_type === 'conclusion'}
-							<div class="p-3.5 rounded-lg bg-slate-900/40 border border-slate-800/80 text-slate-300 font-sans leading-relaxed whitespace-pre-wrap">
-								{typeof step.tool_output === 'object' && step.tool_output?.content
-									? step.tool_output.content
-									: typeof step.tool_output === 'string'
-										? step.tool_output
-										: JSON.stringify(step.tool_output, null, 2)}
+					<div class="px-4 pb-4 pt-1 space-y-3 border-t border-white/[0.05] bg-black/30 text-xs">
+						<!-- Strategy / Plan Text -->
+						{#if !isTool && step.tool_input}
+							<div class="p-3.5 rounded-lg bg-black/40 border border-white/[0.05] text-slate-300 font-sans text-xs leading-relaxed space-y-2">
+								<p class="text-slate-200">
+									{typeof step.tool_input === 'string' ? step.tool_input : JSON.stringify(step.tool_input, null, 2)}
+								</p>
 							</div>
-						{:else if step.step_type === 'tool_call'}
-							<!-- Tool Input Args -->
-							{#if step.tool_input}
-								<div class="space-y-1">
-									<span class="text-[10px] text-slate-500 uppercase font-semibold">Tool Arguments:</span>
-									<pre class="p-2.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] text-indigo-300 overflow-x-auto">{JSON.stringify(step.tool_input, null, 2)}</pre>
-								</div>
-							{/if}
+						{/if}
 
-							<!-- Tool Output Observation -->
-							{#if step.tool_output}
-								<div class="space-y-1">
-									<span class="text-[10px] text-slate-500 uppercase font-semibold">Diagnostic Observation Payload:</span>
-									<pre class="p-2.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] text-emerald-300 overflow-x-auto max-h-56">{JSON.stringify(step.tool_output, null, 2)}</pre>
+						<!-- Tool Arguments -->
+						{#if isTool && step.tool_input}
+							<div class="space-y-1.5">
+								<div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+									<span class="uppercase tracking-wider text-[10px] text-slate-500">Tool Parameters:</span>
+									<button
+										onclick={() => copyPayload(stepKey + '-in', typeof step.tool_input === 'string' ? step.tool_input : JSON.stringify(step.tool_input, null, 2))}
+										class="flex items-center gap-1 text-slate-400 hover:text-white transition"
+									>
+										{#if copiedStepId === stepKey + '-in'}
+											<Check class="w-3 h-3 text-emerald-400" />
+											<span class="text-emerald-400">Copied</span>
+										{:else}
+											<Copy class="w-3 h-3" />
+											<span>Copy</span>
+										{/if}
+									</button>
 								</div>
-							{/if}
+								<pre class="p-3 rounded-lg bg-[#08090c] border border-white/[0.06] font-mono text-[11px] text-indigo-300 overflow-x-auto leading-relaxed">{typeof step.tool_input === 'string' ? step.tool_input : JSON.stringify(step.tool_input, null, 2)}</pre>
+							</div>
+						{/if}
+
+						<!-- Tool Output / Diagnostic Observations -->
+						{#if isTool && step.tool_output}
+							<div class="space-y-1.5">
+								<div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+									<span class="uppercase tracking-wider text-[10px] text-slate-500">Diagnostic Observation Payload:</span>
+									<button
+										onclick={() => copyPayload(stepKey + '-out', typeof step.tool_output === 'string' ? step.tool_output : JSON.stringify(step.tool_output, null, 2))}
+										class="flex items-center gap-1 text-slate-400 hover:text-white transition"
+									>
+										{#if copiedStepId === stepKey + '-out'}
+											<Check class="w-3 h-3 text-emerald-400" />
+											<span class="text-emerald-400">Copied</span>
+										{:else}
+											<Copy class="w-3 h-3" />
+											<span>Copy</span>
+										{/if}
+									</button>
+								</div>
+								<pre class="p-3 rounded-lg bg-[#08090c] border border-white/[0.06] font-mono text-[11px] text-emerald-300/90 overflow-x-auto leading-relaxed">{typeof step.tool_output === 'string' ? step.tool_output : JSON.stringify(step.tool_output, null, 2)}</pre>
+							</div>
 						{/if}
 					</div>
 				{/if}
-			</Card>
+			</div>
 		{/each}
 	</div>
 </div>

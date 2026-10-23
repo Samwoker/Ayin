@@ -26,6 +26,7 @@
 	import IncidentList from '#lib/components/IncidentList.svelte';
 	import IncidentDetail from '#lib/components/IncidentDetail.svelte';
 	import PricingModal from '#lib/components/PricingModal.svelte';
+	import DocsModal from '#lib/components/DocsModal.svelte';
 	import { Card } from '#lib/components/ui/card/index.js';
 	import { Inbox } from '@lucide/svelte';
 
@@ -36,6 +37,7 @@
 	let isTriggeringRun = $state(false);
 	let isLiveStreaming = $state(false);
 	let isPricingOpen = $state(false);
+	let isDocsOpen = $state(false);
 	let subscription = $state<SubscriptionInfo | null>(null);
 	let activeEventSource: EventSource | null = null;
 
@@ -400,6 +402,10 @@
 
 	onMount(() => {
 		syncIncidents();
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('docs') === 'true') {
+			isDocsOpen = true;
+		}
 		const interval = setInterval(checkBackendConnectivity, 10000);
 		return () => {
 			clearInterval(interval);
@@ -411,12 +417,12 @@
 </script>
 
 <svelte:head>
-	<title>triage — Incident Response & Remediation Console</title>
+	<title>Ayin (ዓይን) — Autonomous Incident Response & Observability Eye</title>
 </svelte:head>
 
-<div class="min-h-screen bg-[#080c15] text-slate-100 font-sans selection:bg-rose-500/20 selection:text-rose-300 relative bg-grid-pattern">
-	<!-- Ambient top glow -->
-	<div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-64 bg-radial from-rose-950/20 via-transparent to-transparent pointer-events-none blur-3xl"></div>
+<div class="min-h-screen bg-[#090a0d] text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 relative bg-grid-pattern">
+	<!-- Subtle ambient engineering aura -->
+	<div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-64 bg-gradient-to-b from-indigo-950/15 via-transparent to-transparent pointer-events-none blur-3xl"></div>
 
 	<!-- Navbar -->
 	<Navbar
@@ -429,6 +435,7 @@
 		onSimulate={handleSimulateAlert}
 		onRefresh={syncIncidents}
 		onOpenPricing={() => (isPricingOpen = true)}
+		onOpenDocs={() => (isDocsOpen = true)}
 		{isRefreshing}
 	/>
 
@@ -488,5 +495,11 @@
 		isOpen={isPricingOpen}
 		onClose={() => (isPricingOpen = false)}
 		{subscription}
+	/>
+
+	<!-- Developer Integration Guides & Webhooks Modal -->
+	<DocsModal
+		isOpen={isDocsOpen}
+		onClose={() => (isDocsOpen = false)}
 	/>
 </div>

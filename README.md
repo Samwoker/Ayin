@@ -1,6 +1,5 @@
-# triage ⚡
-
-> Autonomous, multi-tenant incident triage agent that ingests alerts and logs, investigates with read-only tools, and returns ranked root-cause hypotheses with verified evidence, confidence, and first-response checklists.
+# Ayin (ዓይን) 👁️
+> *Ayin* (ዓይን) — meaning **"Eye"** in Amharic. An autonomous, multi-tenant incident triage & observability agent that ingests alerts and logs, investigates with read-only tools, and returns ranked root-cause hypotheses with verified evidence, confidence, and first-response checklists.
 
 [![CI](https://github.com/triage-agent/triage/actions/workflows/ci.yml/badge.svg)](https://github.com/triage-agent/triage/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -72,7 +71,8 @@ triage/
 │   ├── docker-compose.yml            # PostgreSQL(pgvector), Redis, Prometheus, Grafana
 │   └── prometheus/
 ├── docs/
-│   ├── architecture.md
+│   ├── developer-guide.md            # Integration guide (GitHub, GitLab, Alerts, MCP)
+│   ├── architecture.md               # System design & core tenets
 │   └── decisions/                    # Architecture Decision Records (ADRs)
 ├── Makefile
 ├── .env.example
